@@ -26,6 +26,9 @@ const paymentMethods = [
 
 const USDT_ADDRESS = "0x96E5b80549023912E2D4B07AcE3efD8c5f7ED789";
 
+// Conversion rate: 1 USDT = 125 BDT
+const USDT_TO_BDT_RATE = 125;
+
 export function DepositForm() {
   const { language, user } = useApp();
   const { toast } = useToast();
@@ -41,6 +44,7 @@ export function DepositForm() {
   });
 
   const selectedMethod = form.watch("method");
+  const watchedAmount = form.watch("amount");
 
   const depositMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -158,7 +162,7 @@ export function DepositForm() {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("amount", language)}</FormLabel>
+                  <FormLabel>{t("amount", language)} (BDT)</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
@@ -172,6 +176,22 @@ export function DepositForm() {
                 </FormItem>
               )}
             />
+
+            {selectedMethod === "usdt" && watchedAmount > 0 && (
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20" data-testid="usdt-conversion">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {language === "bn" ? "আপনাকে পাঠাতে হবে" : "You need to pay"}
+                  </span>
+                  <span className="text-lg font-bold text-primary">
+                    {(watchedAmount / USDT_TO_BDT_RATE).toFixed(2)} USDT
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {language === "bn" ? "রেট: ১ USDT = ১২৫ BDT" : "Rate: 1 USDT = 125 BDT"}
+                </div>
+              </div>
+            )}
 
             <FormField
               control={form.control}
