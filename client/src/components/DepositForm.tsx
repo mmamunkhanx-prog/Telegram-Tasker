@@ -19,12 +19,12 @@ import type { z } from "zod";
 type FormData = z.infer<typeof depositSchema>;
 
 const paymentMethods = [
-  { id: "bkash", name: "bKash", number: "01712345678" },
-  { id: "nagad", name: "Nagad", number: "01812345678" },
-  { id: "usdt", name: "USDT (BEP-20)", address: "0x1234...5678AbCdEf" },
+  { id: "bkash", name: "bKash", number: "01320340667" },
+  { id: "nagad", name: "Nagad", number: "01320340667" },
+  { id: "usdt", name: "USDT (BEP-20)", address: "0x96E5...7ED789" },
 ];
 
-const USDT_ADDRESS = "0x742d35Cc6634C0532925a3b844Bc9e7595f0Ab12";
+const USDT_ADDRESS = "0x96E5b80549023912E2D4B07AcE3efD8c5f7ED789";
 
 export function DepositForm() {
   const { language, user } = useApp();
