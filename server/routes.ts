@@ -160,9 +160,41 @@ export async function registerRoutes(
         return res.json({ success: false, error: "Already completed" });
       }
 
-      // In production, call Telegram Bot API to verify membership
-      // For demo, simulate 70% success rate
-      const isVerified = Math.random() > 0.3;
+      // Get user's Telegram ID for verification
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.json({ success: false, error: "User not found" });
+      }
+
+      // Verify membership using Telegram Bot API
+      let isVerified = false;
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      
+      if (botToken) {
+        try {
+          const channelUsername = task.channelUsername.startsWith("@") 
+            ? task.channelUsername 
+            : `@${task.channelUsername}`;
+          
+          const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(channelUsername)}&user_id=${user.telegramId}`
+          );
+          const data = await response.json();
+          
+          if (data.ok && data.result) {
+            const status = data.result.status;
+            // Member statuses that count as "joined"
+            isVerified = ["creator", "administrator", "member"].includes(status);
+          }
+        } catch (error) {
+          console.error("Telegram API error:", error);
+          // Fall back to simulated verification if API fails
+          isVerified = Math.random() > 0.3;
+        }
+      } else {
+        // No bot token configured, use simulated verification
+        isVerified = Math.random() > 0.3;
+      }
 
       if (isVerified) {
         // Update or create completion
@@ -176,21 +208,18 @@ export async function registerRoutes(
           });
         }
 
-        // Add reward to user
-        const user = await storage.getUser(userId);
-        if (user) {
-          await storage.updateUser(userId, {
-            balance: user.balance + task.rewardPerMember,
-          });
+        // Add reward to user (user already fetched above)
+        await storage.updateUser(userId, {
+          balance: user.balance + task.rewardPerMember,
+        });
 
-          // Create transaction
-          await storage.createTransaction({
-            userId,
-            type: "task_earning",
-            amount: task.rewardPerMember,
-            status: "approved",
-          });
-        }
+        // Create transaction
+        await storage.createTransaction({
+          userId,
+          type: "task_earning",
+          amount: task.rewardPerMember,
+          status: "approved",
+        });
 
         // Update task
         await storage.updateTask(taskId, {
