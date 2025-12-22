@@ -29,29 +29,27 @@ export async function registerRoutes(
             referredBy = referrer.id;
             // Give referral bonus to referrer
             await storage.updateUser(referrer.id, {
-              balance: referrer.balance + 5, // 5 BDT referral bonus
+              balance: referrer.balance + 5,
             });
             await storage.createTransaction({
               userId: referrer.id,
               type: "referral_bonus",
               amount: 5,
               status: "approved",
-              createdAt: Date.now(),
             });
           }
         }
 
         user = await storage.createUser({
           telegramId,
-          username,
+          username: username || null,
           firstName,
-          lastName,
-          photoUrl,
+          lastName: lastName || null,
+          photoUrl: photoUrl || null,
           balance: 0,
           referralCode: "",
-          referredBy,
-          isAdmin: telegramId === "123456789", // Demo admin
-          createdAt: Date.now(),
+          referredBy: referredBy || null,
+          isAdmin: telegramId === "123456789",
         });
       }
 
@@ -123,14 +121,17 @@ export async function registerRoutes(
         type: "task_creation",
         amount: validated.totalBudget,
         status: "approved",
-        createdAt: Date.now(),
       });
 
+      const maxMembers = Math.floor(validated.totalBudget / validated.rewardPerMember);
       const task = await storage.createTask({
         ...validated,
         creatorId,
-        createdAt: Date.now(),
-      } as any);
+        remainingBudget: validated.totalBudget,
+        completedCount: 0,
+        maxMembers,
+        isActive: true,
+      });
 
       res.json(task);
     } catch (error) {
@@ -159,8 +160,8 @@ export async function registerRoutes(
         return res.json({ success: false, error: "Already completed" });
       }
 
-      // In production, you would call Telegram Bot API here to verify membership
-      // For demo, we'll simulate a 70% success rate
+      // In production, call Telegram Bot API to verify membership
+      // For demo, simulate 70% success rate
       const isVerified = Math.random() > 0.3;
 
       if (isVerified) {
@@ -172,7 +173,6 @@ export async function registerRoutes(
             taskId,
             userId,
             status: "verified",
-            createdAt: Date.now(),
           });
         }
 
@@ -189,7 +189,6 @@ export async function registerRoutes(
             type: "task_earning",
             amount: task.rewardPerMember,
             status: "approved",
-            createdAt: Date.now(),
           });
         }
 
@@ -209,7 +208,6 @@ export async function registerRoutes(
             taskId,
             userId,
             status: "failed",
-            createdAt: Date.now(),
           });
         }
         return res.json({ success: false, error: "Not a member of the channel" });
@@ -248,7 +246,6 @@ export async function registerRoutes(
         method: validated.method,
         transactionId: validated.transactionId,
         status: "pending",
-        createdAt: Date.now(),
       });
 
       res.json(transaction);
@@ -285,7 +282,6 @@ export async function registerRoutes(
         method: validated.method,
         walletAddress: validated.walletAddress,
         status: "pending",
-        createdAt: Date.now(),
       });
 
       res.json(transaction);
@@ -342,7 +338,7 @@ export async function registerRoutes(
       await storage.updateTransaction(id, { status: "approved" });
 
       // If deposit, add to user balance
-      if (type === "deposit") {
+      if (transaction.type === "deposit") {
         const user = await storage.getUser(transaction.userId);
         if (user) {
           await storage.updateUser(user.id, {
@@ -371,7 +367,7 @@ export async function registerRoutes(
       await storage.updateTransaction(id, { status: "rejected" });
 
       // If withdrawal was rejected, refund the balance
-      if (type === "withdrawal") {
+      if (transaction.type === "withdraw") {
         const user = await storage.getUser(transaction.userId);
         if (user) {
           await storage.updateUser(user.id, {

@@ -1,80 +1,106 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, integer, boolean, real, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User schema
-export const userSchema = z.object({
-  id: z.string(),
-  telegramId: z.string(),
-  username: z.string().optional(),
-  firstName: z.string(),
-  lastName: z.string().optional(),
-  photoUrl: z.string().optional(),
-  balance: z.number().default(0),
-  referralCode: z.string(),
-  referredBy: z.string().optional(),
-  isAdmin: z.boolean().default(false),
-  createdAt: z.number(),
+// Users table
+export const users = pgTable("users", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  telegramId: varchar("telegram_id", { length: 50 }).notNull().unique(),
+  username: varchar("username", { length: 100 }),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }),
+  photoUrl: text("photo_url"),
+  balance: real("balance").notNull().default(0),
+  referralCode: varchar("referral_code", { length: 20 }).notNull().unique(),
+  referredBy: varchar("referred_by", { length: 36 }),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export type User = z.infer<typeof userSchema>;
-export type InsertUser = Omit<User, "id">;
-
-// Task schema
-export const taskSchema = z.object({
-  id: z.string(),
-  creatorId: z.string(),
-  title: z.string(),
-  titleBn: z.string().optional(),
-  channelUsername: z.string(),
-  channelLink: z.string(),
-  rewardPerMember: z.number().min(0.5),
-  totalBudget: z.number(),
-  remainingBudget: z.number(),
-  completedCount: z.number().default(0),
-  maxMembers: z.number(),
-  isActive: z.boolean().default(true),
-  createdAt: z.number(),
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
 });
 
-export type Task = z.infer<typeof taskSchema>;
-export type InsertTask = Omit<Task, "id">;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
 
-export const insertTaskSchema = z.object({
+// Tasks table
+export const tasks = pgTable("tasks", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  creatorId: varchar("creator_id", { length: 36 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  titleBn: varchar("title_bn", { length: 200 }),
+  channelUsername: varchar("channel_username", { length: 100 }).notNull(),
+  channelLink: text("channel_link").notNull(),
+  rewardPerMember: real("reward_per_member").notNull(),
+  totalBudget: real("total_budget").notNull(),
+  remainingBudget: real("remaining_budget").notNull(),
+  completedCount: integer("completed_count").notNull().default(0),
+  maxMembers: integer("max_members").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  remainingBudget: true,
+  completedCount: true,
+  maxMembers: true,
+  isActive: true,
+}).extend({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  titleBn: z.string().optional(),
   channelUsername: z.string().min(1, "Channel username is required"),
   channelLink: z.string().url("Must be a valid URL"),
   rewardPerMember: z.number().min(0.5, "Minimum reward is 0.5 BDT"),
   totalBudget: z.number().min(1, "Budget must be at least 1 BDT"),
 });
 
-// Task completion schema
-export const taskCompletionSchema = z.object({
-  id: z.string(),
-  taskId: z.string(),
-  userId: z.string(),
-  status: z.enum(["pending", "verified", "failed"]),
-  createdAt: z.number(),
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
+// Task completions table
+export const taskCompletions = pgTable("task_completions", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  taskId: varchar("task_id", { length: 36 }).notNull(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export type TaskCompletion = z.infer<typeof taskCompletionSchema>;
-
-// Transaction schema
-export const transactionSchema = z.object({
-  id: z.string(),
-  userId: z.string(),
-  type: z.enum(["deposit", "withdraw", "task_earning", "task_creation", "referral_bonus"]),
-  amount: z.number(),
-  status: z.enum(["pending", "approved", "rejected"]),
-  method: z.enum(["bkash", "nagad", "usdt"]).optional(),
-  walletAddress: z.string().optional(),
-  transactionId: z.string().optional(),
-  note: z.string().optional(),
-  createdAt: z.number(),
+export const insertTaskCompletionSchema = createInsertSchema(taskCompletions).omit({
+  id: true,
+  createdAt: true,
 });
 
-export type Transaction = z.infer<typeof transactionSchema>;
-export type InsertTransaction = Omit<Transaction, "id">;
+export type InsertTaskCompletion = z.infer<typeof insertTaskCompletionSchema>;
+export type TaskCompletion = typeof taskCompletions.$inferSelect;
 
+// Transactions table
+export const transactions = pgTable("transactions", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  type: varchar("type", { length: 30 }).notNull(),
+  amount: real("amount").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  method: varchar("method", { length: 20 }),
+  walletAddress: text("wallet_address"),
+  transactionId: varchar("transaction_id", { length: 100 }),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;
+
+// Validation schemas for API
 export const depositSchema = z.object({
   amount: z.number().min(10, "Minimum deposit is 10 BDT"),
   method: z.enum(["bkash", "nagad", "usdt"]),
@@ -87,25 +113,12 @@ export const withdrawSchema = z.object({
   walletAddress: z.string().min(1, "Wallet address is required"),
 });
 
-// Banner schema
-export const bannerSchema = z.object({
-  id: z.string(),
-  imageUrl: z.string(),
-  link: z.string().optional(),
-  isActive: z.boolean().default(true),
-  order: z.number(),
-});
-
-export type Banner = z.infer<typeof bannerSchema>;
-
-// Admin stats
-export const adminStatsSchema = z.object({
-  totalUsers: z.number(),
-  totalDeposits: z.number(),
-  totalWithdrawals: z.number(),
-  pendingDeposits: z.number(),
-  pendingWithdrawals: z.number(),
-  activeTasks: z.number(),
-});
-
-export type AdminStats = z.infer<typeof adminStatsSchema>;
+// Admin stats type
+export interface AdminStats {
+  totalUsers: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
+  pendingDeposits: number;
+  pendingWithdrawals: number;
+  activeTasks: number;
+}

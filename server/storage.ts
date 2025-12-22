@@ -1,14 +1,24 @@
-import { randomUUID } from "crypto";
-import type {
-  User,
-  InsertUser,
-  Task,
-  InsertTask,
-  TaskCompletion,
-  Transaction,
-  InsertTransaction,
-  AdminStats,
+import { db } from "./db";
+import { eq, desc, and, sql } from "drizzle-orm";
+import {
+  users,
+  tasks,
+  taskCompletions,
+  transactions,
+  type User,
+  type InsertUser,
+  type Task,
+  type InsertTask,
+  type TaskCompletion,
+  type InsertTaskCompletion,
+  type Transaction,
+  type InsertTransaction,
+  type AdminStats,
 } from "@shared/schema";
+
+function generateReferralCode(): string {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
 export interface IStorage {
   // Users
@@ -24,13 +34,13 @@ export interface IStorage {
   getTask(id: string): Promise<Task | undefined>;
   getAllTasks(): Promise<Task[]>;
   getActiveTasks(): Promise<Task[]>;
-  createTask(task: InsertTask): Promise<Task>;
+  createTask(task: Omit<Task, "id" | "createdAt">): Promise<Task>;
   updateTask(id: string, updates: Partial<Task>): Promise<Task | undefined>;
 
   // Task Completions
   getTaskCompletion(taskId: string, userId: string): Promise<TaskCompletion | undefined>;
   getUserTaskCompletions(userId: string): Promise<TaskCompletion[]>;
-  createTaskCompletion(completion: Omit<TaskCompletion, "id">): Promise<TaskCompletion>;
+  createTaskCompletion(completion: InsertTaskCompletion): Promise<TaskCompletion>;
   updateTaskCompletion(id: string, updates: Partial<TaskCompletion>): Promise<TaskCompletion | undefined>;
 
   // Transactions
@@ -45,253 +55,131 @@ export interface IStorage {
   getAdminStats(): Promise<AdminStats>;
 }
 
-function generateReferralCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private tasks: Map<string, Task>;
-  private taskCompletions: Map<string, TaskCompletion>;
-  private transactions: Map<string, Transaction>;
-
-  constructor() {
-    this.users = new Map();
-    this.tasks = new Map();
-    this.taskCompletions = new Map();
-    this.transactions = new Map();
-
-    // Seed some demo data
-    this.seedData();
-  }
-
-  private seedData() {
-    // Create a demo admin user
-    const adminUser: User = {
-      id: "admin-1",
-      telegramId: "123456789",
-      username: "testuser",
-      firstName: "Test",
-      lastName: "User",
-      photoUrl: undefined,
-      balance: 1000,
-      referralCode: "ADMIN1",
-      referredBy: undefined,
-      isAdmin: true,
-      createdAt: Date.now(),
-    };
-    this.users.set(adminUser.id, adminUser);
-
-    // Create some demo users for leaderboard
-    const demoUsers: User[] = [
-      { id: "user-1", telegramId: "111", firstName: "Rahim", lastName: "Khan", username: "rahim_k", balance: 520.50, referralCode: "RAHIM1", isAdmin: false, createdAt: Date.now() - 86400000 },
-      { id: "user-2", telegramId: "222", firstName: "Fatima", lastName: "Ahmed", username: "fatima_a", balance: 385.25, referralCode: "FATIM1", isAdmin: false, createdAt: Date.now() - 172800000 },
-      { id: "user-3", telegramId: "333", firstName: "Karim", lastName: "Hassan", username: "karim_h", balance: 275.00, referralCode: "KARIM1", isAdmin: false, createdAt: Date.now() - 259200000 },
-      { id: "user-4", telegramId: "444", firstName: "Nadia", username: "nadia_s", balance: 150.75, referralCode: "NADIA1", isAdmin: false, createdAt: Date.now() - 345600000 },
-      { id: "user-5", telegramId: "555", firstName: "Tanvir", lastName: "Islam", username: "tanvir_i", balance: 95.00, referralCode: "TANVI1", isAdmin: false, createdAt: Date.now() - 432000000 },
-    ];
-    demoUsers.forEach(u => this.users.set(u.id, u));
-
-    // Create some demo tasks
-    const demoTasks: Task[] = [
-      {
-        id: "task-1",
-        creatorId: "user-1",
-        title: "Join Tech News Channel",
-        titleBn: "টেক নিউজ চ্যানেলে যোগ দিন",
-        channelUsername: "technewsbd",
-        channelLink: "https://t.me/technewsbd",
-        rewardPerMember: 1.0,
-        totalBudget: 100,
-        remainingBudget: 85,
-        completedCount: 15,
-        maxMembers: 100,
-        isActive: true,
-        createdAt: Date.now() - 86400000,
-      },
-      {
-        id: "task-2",
-        creatorId: "user-2",
-        title: "Subscribe to Crypto Updates",
-        titleBn: "ক্রিপ্টো আপডেট সাবস্ক্রাইব করুন",
-        channelUsername: "cryptoupdatesbd",
-        channelLink: "https://t.me/cryptoupdatesbd",
-        rewardPerMember: 0.5,
-        totalBudget: 50,
-        remainingBudget: 45,
-        completedCount: 10,
-        maxMembers: 100,
-        isActive: true,
-        createdAt: Date.now() - 172800000,
-      },
-      {
-        id: "task-3",
-        creatorId: "user-3",
-        title: "Join Gaming Community",
-        titleBn: "গেমিং কমিউনিটিতে যোগ দিন",
-        channelUsername: "gamingbd",
-        channelLink: "https://t.me/gamingbd",
-        rewardPerMember: 2.0,
-        totalBudget: 200,
-        remainingBudget: 180,
-        completedCount: 10,
-        maxMembers: 100,
-        isActive: true,
-        createdAt: Date.now() - 259200000,
-      },
-    ];
-    demoTasks.forEach(t => this.tasks.set(t.id, t));
-  }
-
+export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByTelegramId(telegramId: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find((u) => u.telegramId === telegramId);
+    const [user] = await db.select().from(users).where(eq(users.telegramId, telegramId));
+    return user;
   }
 
   async getUserByReferralCode(code: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find((u) => u.referralCode === code);
+    const [user] = await db.select().from(users).where(eq(users.referralCode, code));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = {
+    const referralCode = insertUser.referralCode || generateReferralCode();
+    const [user] = await db.insert(users).values({
       ...insertUser,
-      id,
-      referralCode: insertUser.referralCode || generateReferralCode(),
-    };
-    this.users.set(id, user);
+      referralCode,
+    }).returning();
     return user;
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    const updated = { ...user, ...updates };
-    this.users.set(id, updated);
-    return updated;
+    const [user] = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    return user;
   }
 
   async getTopEarners(limit: number): Promise<User[]> {
-    return Array.from(this.users.values())
-      .sort((a, b) => b.balance - a.balance)
-      .slice(0, limit);
+    return db.select().from(users).orderBy(desc(users.balance)).limit(limit);
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    return db.select().from(users);
   }
 
   // Tasks
   async getTask(id: string): Promise<Task | undefined> {
-    return this.tasks.get(id);
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task;
   }
 
   async getAllTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values());
+    return db.select().from(tasks);
   }
 
   async getActiveTasks(): Promise<Task[]> {
-    return Array.from(this.tasks.values())
-      .filter((t) => t.isActive && t.remainingBudget > 0)
-      .sort((a, b) => b.createdAt - a.createdAt);
+    return db.select().from(tasks)
+      .where(and(eq(tasks.isActive, true), sql`${tasks.remainingBudget} > 0`))
+      .orderBy(desc(tasks.createdAt));
   }
 
-  async createTask(insertTask: InsertTask): Promise<Task> {
-    const id = randomUUID();
-    const maxMembers = Math.floor(insertTask.totalBudget / insertTask.rewardPerMember);
-    const task: Task = {
-      ...insertTask,
-      id,
-      remainingBudget: insertTask.totalBudget,
-      completedCount: 0,
-      maxMembers,
-      isActive: true,
-    };
-    this.tasks.set(id, task);
+  async createTask(taskData: Omit<Task, "id" | "createdAt">): Promise<Task> {
+    const [task] = await db.insert(tasks).values(taskData).returning();
     return task;
   }
 
   async updateTask(id: string, updates: Partial<Task>): Promise<Task | undefined> {
-    const task = this.tasks.get(id);
-    if (!task) return undefined;
-    const updated = { ...task, ...updates };
-    this.tasks.set(id, updated);
-    return updated;
+    const [task] = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
+    return task;
   }
 
   // Task Completions
   async getTaskCompletion(taskId: string, userId: string): Promise<TaskCompletion | undefined> {
-    return Array.from(this.taskCompletions.values()).find(
-      (tc) => tc.taskId === taskId && tc.userId === userId
-    );
+    const [completion] = await db.select().from(taskCompletions)
+      .where(and(eq(taskCompletions.taskId, taskId), eq(taskCompletions.userId, userId)));
+    return completion;
   }
 
   async getUserTaskCompletions(userId: string): Promise<TaskCompletion[]> {
-    return Array.from(this.taskCompletions.values()).filter((tc) => tc.userId === userId);
+    return db.select().from(taskCompletions).where(eq(taskCompletions.userId, userId));
   }
 
-  async createTaskCompletion(completion: Omit<TaskCompletion, "id">): Promise<TaskCompletion> {
-    const id = randomUUID();
-    const taskCompletion: TaskCompletion = { ...completion, id };
-    this.taskCompletions.set(id, taskCompletion);
-    return taskCompletion;
+  async createTaskCompletion(completion: InsertTaskCompletion): Promise<TaskCompletion> {
+    const [tc] = await db.insert(taskCompletions).values(completion).returning();
+    return tc;
   }
 
   async updateTaskCompletion(id: string, updates: Partial<TaskCompletion>): Promise<TaskCompletion | undefined> {
-    const tc = this.taskCompletions.get(id);
-    if (!tc) return undefined;
-    const updated = { ...tc, ...updates };
-    this.taskCompletions.set(id, updated);
-    return updated;
+    const [tc] = await db.update(taskCompletions).set(updates).where(eq(taskCompletions.id, id)).returning();
+    return tc;
   }
 
   // Transactions
   async getTransaction(id: string): Promise<Transaction | undefined> {
-    return this.transactions.get(id);
+    const [tx] = await db.select().from(transactions).where(eq(transactions.id, id));
+    return tx;
   }
 
   async getUserTransactions(userId: string): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter((t) => t.userId === userId)
-      .sort((a, b) => b.createdAt - a.createdAt);
+    return db.select().from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
   }
 
   async getPendingDeposits(): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter((t) => t.type === "deposit" && t.status === "pending")
-      .sort((a, b) => a.createdAt - b.createdAt);
+    return db.select().from(transactions)
+      .where(and(eq(transactions.type, "deposit"), eq(transactions.status, "pending")))
+      .orderBy(transactions.createdAt);
   }
 
   async getPendingWithdrawals(): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter((t) => t.type === "withdraw" && t.status === "pending")
-      .sort((a, b) => a.createdAt - b.createdAt);
+    return db.select().from(transactions)
+      .where(and(eq(transactions.type, "withdraw"), eq(transactions.status, "pending")))
+      .orderBy(transactions.createdAt);
   }
 
-  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
-    const id = randomUUID();
-    const transaction: Transaction = { ...insertTransaction, id };
-    this.transactions.set(id, transaction);
-    return transaction;
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [tx] = await db.insert(transactions).values(transaction).returning();
+    return tx;
   }
 
   async updateTransaction(id: string, updates: Partial<Transaction>): Promise<Transaction | undefined> {
-    const tx = this.transactions.get(id);
-    if (!tx) return undefined;
-    const updated = { ...tx, ...updates };
-    this.transactions.set(id, updated);
-    return updated;
+    const [tx] = await db.update(transactions).set(updates).where(eq(transactions.id, id)).returning();
+    return tx;
   }
 
-  // Admin
+  // Admin Stats
   async getAdminStats(): Promise<AdminStats> {
-    const allUsers = Array.from(this.users.values());
-    const allTransactions = Array.from(this.transactions.values());
-    const allTasks = Array.from(this.tasks.values());
+    const allUsers = await db.select().from(users);
+    const allTransactions = await db.select().from(transactions);
+    const allTasks = await db.select().from(tasks);
 
     return {
       totalUsers: allUsers.length,
@@ -308,4 +196,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
