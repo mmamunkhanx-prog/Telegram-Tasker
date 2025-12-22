@@ -14,13 +14,14 @@ import { PlusCircle, Loader2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 
 // Form schema without creatorId (added on submit)
+// Use coerce to convert string inputs to numbers
 const createTaskFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   titleBn: z.string().optional(),
   channelUsername: z.string().min(1, "Channel username is required"),
   channelLink: z.string().url("Must be a valid URL"),
-  rewardPerMember: z.number().min(0.5, "Minimum reward is 0.5 BDT"),
-  totalBudget: z.number().min(1, "Budget must be at least 1 BDT"),
+  rewardPerMember: z.coerce.number().min(0.5, "Minimum reward is 0.5 BDT"),
+  totalBudget: z.coerce.number().min(1, "Budget must be at least 1 BDT"),
 });
 
 type FormData = z.infer<typeof createTaskFormSchema>;
@@ -54,13 +55,29 @@ export default function CreateTask() {
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const response = await apiRequest("POST", "/api/tasks", {
+      console.log("Mutation called with data:", data);
+      console.log("Sending to API with creatorId:", user?.id);
+      
+      const payload = {
         ...data,
         creatorId: user?.id,
-      });
-      return response.json();
+      };
+      console.log("Full payload:", payload);
+      
+      const response = await apiRequest("POST", "/api/tasks", payload);
+      console.log("API response status:", response.status);
+      
+      const result = await response.json();
+      console.log("API response body:", result);
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create task");
+      }
+      
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Task created successfully:", data);
       hapticFeedback("heavy");
       toast({
         title: t("success", language),
@@ -72,18 +89,29 @@ export default function CreateTask() {
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Task creation error:", error);
       toast({
         title: t("error", language),
-        description: "Failed to create task",
+        description: error.message || "Failed to create task",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: FormData) => {
+    console.log("=== CREATE TASK SUBMIT ===");
+    console.log("Form data:", data);
+    console.log("User:", user);
+    console.log("Has insufficient balance:", hasInsufficientBalance);
+    
     hapticFeedback("light");
-    if (hasInsufficientBalance) {
+    
+    // Admin bypass for testing (Telegram ID 1991771063)
+    const isAdmin = user?.telegramId === "1991771063";
+    
+    if (hasInsufficientBalance && !isAdmin) {
+      console.log("Blocked: insufficient balance");
       toast({
         title: language === "bn" ? "ব্যালেন্স অপর্যাপ্ত" : "Insufficient balance",
         description: language === "bn" 
@@ -93,6 +121,8 @@ export default function CreateTask() {
       });
       return;
     }
+    
+    console.log("Calling API to create task...");
     createMutation.mutate(data);
   };
 
@@ -258,6 +288,12 @@ export default function CreateTask() {
                 className="w-full"
                 disabled={createMutation.isPending}
                 data-testid="button-create-task"
+                onClick={() => {
+                  console.log("=== BUTTON CLICKED ===");
+                  console.log("Form values:", form.getValues());
+                  console.log("Form errors:", form.formState.errors);
+                  console.log("Is form valid:", form.formState.isValid);
+                }}
               >
                 {createMutation.isPending ? (
                   <>
@@ -268,6 +304,14 @@ export default function CreateTask() {
                   t("create", language)
                 )}
               </Button>
+              
+              {/* Debug: show any form errors */}
+              {Object.keys(form.formState.errors).length > 0 && (
+                <div className="p-2 bg-red-100 dark:bg-red-900 rounded text-xs">
+                  <strong>Form Errors:</strong>
+                  <pre>{JSON.stringify(form.formState.errors, null, 2)}</pre>
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>

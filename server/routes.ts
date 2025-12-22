@@ -127,14 +127,32 @@ export async function registerRoutes(
 
   // Create a new task
   app.post("/api/tasks", async (req, res) => {
+    console.log("=== POST /api/tasks ===");
+    console.log("Request body:", req.body);
+    
     try {
       const { creatorId, ...taskData } = req.body;
+      console.log("Creator ID:", creatorId);
+      console.log("Task data:", taskData);
       
       const validated = insertTaskSchema.parse(taskData);
+      console.log("Validated data:", validated);
       
       // Check if user has enough balance
       const user = await storage.getUser(creatorId);
-      if (!user || user.balance < validated.totalBudget) {
+      console.log("User found:", user);
+      
+      // Admin bypass for testing (Telegram ID 1991771063)
+      const isAdmin = user?.telegramId === ADMIN_TELEGRAM_ID;
+      console.log("Is admin:", isAdmin);
+      
+      if (!user) {
+        console.log("User not found!");
+        return res.status(400).json({ error: "User not found" });
+      }
+      
+      if (user.balance < validated.totalBudget && !isAdmin) {
+        console.log("Insufficient balance:", user.balance, "<", validated.totalBudget);
         return res.status(400).json({ error: "Insufficient balance" });
       }
 
