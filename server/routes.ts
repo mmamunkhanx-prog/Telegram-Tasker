@@ -135,21 +135,27 @@ export async function registerRoutes(
       console.log("Creator ID:", creatorId);
       console.log("Task data:", taskData);
       
+      // Validate creatorId is provided
+      if (!creatorId) {
+        console.log("Missing creatorId!");
+        return res.status(400).json({ error: "creatorId is required" });
+      }
+      
       const validated = insertTaskSchema.parse(taskData);
       console.log("Validated data:", validated);
       
-      // Check if user has enough balance
+      // Check if user exists
       const user = await storage.getUser(creatorId);
       console.log("User found:", user);
-      
-      // Admin bypass for testing (Telegram ID 1991771063)
-      const isAdmin = user?.telegramId === ADMIN_TELEGRAM_ID;
-      console.log("Is admin:", isAdmin);
       
       if (!user) {
         console.log("User not found!");
         return res.status(400).json({ error: "User not found" });
       }
+      
+      // Admin bypass for testing (Telegram ID 1991771063)
+      const isAdmin = user.telegramId === ADMIN_TELEGRAM_ID;
+      console.log("Is admin:", isAdmin);
       
       if (user.balance < validated.totalBudget && !isAdmin) {
         console.log("Insufficient balance:", user.balance, "<", validated.totalBudget);

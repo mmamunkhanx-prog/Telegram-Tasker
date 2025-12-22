@@ -46,6 +46,7 @@ export const tasks = pgTable("tasks", {
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
+  creatorId: true, // Handled separately in API
   remainingBudget: true,
   completedCount: true,
   maxMembers: true,
