@@ -27,7 +27,7 @@ const createTaskFormSchema = z.object({
 type FormData = z.infer<typeof createTaskFormSchema>;
 
 export default function CreateTask() {
-  const { language, user, setUser } = useApp();
+  const { language, user, setUser, isLoading } = useApp();
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -42,33 +42,27 @@ export default function CreateTask() {
     },
   });
 
-  // Debug: log form errors when submit fails
-  const formErrors = form.formState.errors;
-  if (Object.keys(formErrors).length > 0) {
-    console.log("Form validation errors:", formErrors);
-  }
-
   const rewardPerMember = form.watch("rewardPerMember");
   const totalBudget = form.watch("totalBudget");
   const estimatedMembers = rewardPerMember > 0 ? Math.floor(totalBudget / rewardPerMember) : 0;
   const hasInsufficientBalance = (user?.balance ?? 0) < totalBudget;
+  
+  // Admin bypass for testing (Telegram ID 1991771063)
+  const isAdmin = user?.telegramId === "1991771063";
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      console.log("Mutation called with data:", data);
-      console.log("Sending to API with creatorId:", user?.id);
+    mutationFn: async (data: FormData & { creatorId: string }) => {
+      console.log("=== MUTATION FN ===");
+      console.log("Full payload with creatorId:", data);
       
-      const payload = {
-        ...data,
-        creatorId: user?.id,
-      };
-      console.log("Full payload:", payload);
+      if (!data.creatorId) {
+        throw new Error("User not authenticated. Please refresh the page.");
+      }
       
-      const response = await apiRequest("POST", "/api/tasks", payload);
-      console.log("API response status:", response.status);
-      
+      const response = await apiRequest("POST", "/api/tasks", data);
       const result = await response.json();
-      console.log("API response body:", result);
+      
+      console.log("API response:", response.status, result);
       
       if (!response.ok) {
         throw new Error(result.error || "Failed to create task");
@@ -89,7 +83,7 @@ export default function CreateTask() {
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Task creation error:", error);
       toast({
         title: t("error", language),
@@ -102,13 +96,23 @@ export default function CreateTask() {
   const onSubmit = (data: FormData) => {
     console.log("=== CREATE TASK SUBMIT ===");
     console.log("Form data:", data);
-    console.log("User:", user);
-    console.log("Has insufficient balance:", hasInsufficientBalance);
+    console.log("Current user object:", user);
+    console.log("User ID:", user?.id);
     
     hapticFeedback("light");
     
-    // Admin bypass for testing (Telegram ID 1991771063)
-    const isAdmin = user?.telegramId === "1991771063";
+    // Check if user is loaded
+    if (!user || !user.id) {
+      console.error("User not loaded yet!");
+      toast({
+        title: language === "bn" ? "ত্রুটি" : "Error",
+        description: language === "bn" 
+          ? "ব্যবহারকারী লোড হয়নি। পেজ রিফ্রেশ করুন।" 
+          : "User not loaded. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (hasInsufficientBalance && !isAdmin) {
       console.log("Blocked: insufficient balance");
@@ -122,9 +126,22 @@ export default function CreateTask() {
       return;
     }
     
-    console.log("Calling API to create task...");
-    createMutation.mutate(data);
+    // Include creatorId directly in the mutation call
+    console.log("Calling API with creatorId:", user.id);
+    createMutation.mutate({
+      ...data,
+      creatorId: user.id,
+    });
   };
+  
+  // Show loading state while user is loading
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -286,32 +303,20 @@ export default function CreateTask() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || !user}
                 data-testid="button-create-task"
-                onClick={() => {
-                  console.log("=== BUTTON CLICKED ===");
-                  console.log("Form values:", form.getValues());
-                  console.log("Form errors:", form.formState.errors);
-                  console.log("Is form valid:", form.formState.isValid);
-                }}
               >
                 {createMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     {t("creating", language)}
                   </>
+                ) : !user ? (
+                  language === "bn" ? "লোড হচ্ছে..." : "Loading..."
                 ) : (
                   t("create", language)
                 )}
               </Button>
-              
-              {/* Debug: show any form errors */}
-              {Object.keys(form.formState.errors).length > 0 && (
-                <div className="p-2 bg-red-100 dark:bg-red-900 rounded text-xs">
-                  <strong>Form Errors:</strong>
-                  <pre>{JSON.stringify(form.formState.errors, null, 2)}</pre>
-                </div>
-              )}
             </form>
           </Form>
         </CardContent>
