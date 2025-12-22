@@ -3,26 +3,34 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
-import { insertTaskSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { hapticFeedback } from "@/lib/telegram";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PlusCircle, Loader2, AlertCircle } from "lucide-react";
-import type { z } from "zod";
+import { z } from "zod";
 
-type FormData = z.infer<typeof insertTaskSchema>;
+// Form schema without creatorId (added on submit)
+const createTaskFormSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  titleBn: z.string().optional(),
+  channelUsername: z.string().min(1, "Channel username is required"),
+  channelLink: z.string().url("Must be a valid URL"),
+  rewardPerMember: z.number().min(0.5, "Minimum reward is 0.5 BDT"),
+  totalBudget: z.number().min(1, "Budget must be at least 1 BDT"),
+});
+
+type FormData = z.infer<typeof createTaskFormSchema>;
 
 export default function CreateTask() {
   const { language, user, setUser } = useApp();
   const { toast } = useToast();
 
   const form = useForm<FormData>({
-    resolver: zodResolver(insertTaskSchema),
+    resolver: zodResolver(createTaskFormSchema),
     defaultValues: {
       title: "",
       titleBn: "",
@@ -32,6 +40,12 @@ export default function CreateTask() {
       totalBudget: 10,
     },
   });
+
+  // Debug: log form errors when submit fails
+  const formErrors = form.formState.errors;
+  if (Object.keys(formErrors).length > 0) {
+    console.log("Form validation errors:", formErrors);
+  }
 
   const rewardPerMember = form.watch("rewardPerMember");
   const totalBudget = form.watch("totalBudget");
