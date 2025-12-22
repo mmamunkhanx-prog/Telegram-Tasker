@@ -68,8 +68,17 @@ export default function CreateTask() {
   });
 
   const onSubmit = (data: FormData) => {
-    if (hasInsufficientBalance) return;
     hapticFeedback("light");
+    if (hasInsufficientBalance) {
+      toast({
+        title: language === "bn" ? "ব্যালেন্স অপর্যাপ্ত" : "Insufficient balance",
+        description: language === "bn" 
+          ? "অনুগ্রহ করে প্রথমে ডিপোজিট করুন" 
+          : "Please deposit first",
+        variant: "destructive",
+      });
+      return;
+    }
     createMutation.mutate(data);
   };
 
@@ -233,7 +242,7 @@ export default function CreateTask() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={createMutation.isPending || hasInsufficientBalance}
+                disabled={createMutation.isPending}
                 data-testid="button-create-task"
               >
                 {createMutation.isPending ? (
