@@ -169,7 +169,11 @@ export default function CreateTask() {
                           type="number"
                           step="0.5"
                           min="0.5"
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            field.onChange(isNaN(val) ? 0.5 : val);
+                          }}
                           data-testid="input-reward"
                         />
                       </FormControl>
@@ -190,7 +194,11 @@ export default function CreateTask() {
                           {...field}
                           type="number"
                           min="1"
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            field.onChange(isNaN(val) ? 1 : val);
+                          }}
                           data-testid="input-budget"
                         />
                       </FormControl>
@@ -208,9 +216,17 @@ export default function CreateTask() {
               </div>
 
               {hasInsufficientBalance && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  <AlertCircle className="w-4 h-4" />
-                  {t("insufficientBalance", language)}
+                <div className="flex flex-col gap-1 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="font-medium">{t("insufficientBalance", language)}</span>
+                  </div>
+                  <div className="text-xs ml-6">
+                    {language === "bn" 
+                      ? `আপনার ব্যালেন্স: ${user?.balance?.toFixed(2) || 0} BDT। প্রয়োজন: ${totalBudget} BDT। প্রথমে ডিপোজিট করুন।`
+                      : `Your balance: ${user?.balance?.toFixed(2) || 0} BDT. Required: ${totalBudget} BDT. Please deposit first.`
+                    }
+                  </div>
                 </div>
               )}
 
