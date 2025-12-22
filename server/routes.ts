@@ -1,8 +1,28 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertTaskSchema, depositSchema, withdrawSchema } from "@shared/schema";
+
+// Admin Telegram ID - only this user can access admin features
+const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || "1991771063";
+
+// Middleware to require admin access
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const userId = req.headers["x-user-id"] as string;
+  
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const user = await storage.getUser(userId);
+  
+  if (!user || !user.isAdmin || user.telegramId !== ADMIN_TELEGRAM_ID) {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -16,6 +36,9 @@ export async function registerRoutes(
       if (!telegramId || !firstName) {
         return res.status(400).json({ error: "Missing required fields" });
       }
+
+      // Check if this is the admin user
+      const isAdmin = telegramId === ADMIN_TELEGRAM_ID;
 
       // Check if user exists
       let user = await storage.getUserByTelegramId(telegramId);
@@ -49,8 +72,13 @@ export async function registerRoutes(
           balance: 0,
           referralCode: "",
           referredBy: referredBy || null,
-          isAdmin: telegramId === "123456789",
+          isAdmin,
         });
+      } else {
+        // Update isAdmin status on every login to ensure it's current
+        if (user.isAdmin !== isAdmin) {
+          user = await storage.updateUser(user.id, { isAdmin }) || user;
+        }
       }
 
       res.json(user);
@@ -323,8 +351,8 @@ export async function registerRoutes(
     }
   });
 
-  // Admin routes
-  app.get("/api/admin/stats", async (req, res) => {
+  // Admin routes - all require admin middleware
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
       const stats = await storage.getAdminStats();
       res.json(stats);
@@ -334,7 +362,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/pending-deposits", async (req, res) => {
+  app.get("/api/admin/pending-deposits", requireAdmin, async (req, res) => {
     try {
       const deposits = await storage.getPendingDeposits();
       res.json(deposits);
@@ -344,7 +372,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/pending-withdrawals", async (req, res) => {
+  app.get("/api/admin/pending-withdrawals", requireAdmin, async (req, res) => {
     try {
       const withdrawals = await storage.getPendingWithdrawals();
       res.json(withdrawals);
@@ -354,7 +382,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/transactions/:id/approve", async (req, res) => {
+  app.post("/api/admin/transactions/:id/approve", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { type } = req.body;
@@ -383,7 +411,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/transactions/:id/reject", async (req, res) => {
+  app.post("/api/admin/transactions/:id/reject", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { type } = req.body;

@@ -3,7 +3,7 @@ import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 import { hapticFeedback } from "@/lib/telegram";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,28 +22,66 @@ import {
 import type { AdminStats, Transaction } from "@shared/schema";
 import { Redirect } from "wouter";
 
+// Admin API request helper that includes x-user-id header
+async function adminApiRequest(
+  method: string,
+  url: string,
+  userId: string,
+  data?: unknown
+): Promise<Response> {
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": userId,
+    },
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
+  }
+  return res;
+}
+
 export default function Admin() {
   const { user, language } = useApp();
   const { toast } = useToast();
 
+  // Custom query function that includes x-user-id header
+  const adminQueryFn = async (url: string) => {
+    if (!user?.id) throw new Error("Not authenticated");
+    const res = await fetch(url, {
+      headers: { "x-user-id": user.id },
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Failed to fetch");
+    return res.json();
+  };
+
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
+    queryFn: () => adminQueryFn("/api/admin/stats"),
     enabled: !!user?.isAdmin,
   });
 
   const { data: pendingDeposits, isLoading: depositsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/admin/pending-deposits"],
+    queryFn: () => adminQueryFn("/api/admin/pending-deposits"),
     enabled: !!user?.isAdmin,
   });
 
   const { data: pendingWithdrawals, isLoading: withdrawalsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/admin/pending-withdrawals"],
+    queryFn: () => adminQueryFn("/api/admin/pending-withdrawals"),
     enabled: !!user?.isAdmin,
   });
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: "deposit" | "withdrawal" }) => {
-      const response = await apiRequest("POST", `/api/admin/transactions/${id}/approve`, { type });
+      if (!user?.id) throw new Error("Not authenticated");
+      const response = await adminApiRequest("POST", `/api/admin/transactions/${id}/approve`, user.id, { type });
       return response.json();
     },
     onSuccess: () => {
@@ -57,7 +95,8 @@ export default function Admin() {
 
   const rejectMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: "deposit" | "withdrawal" }) => {
-      const response = await apiRequest("POST", `/api/admin/transactions/${id}/reject`, { type });
+      if (!user?.id) throw new Error("Not authenticated");
+      const response = await adminApiRequest("POST", `/api/admin/transactions/${id}/reject`, user.id, { type });
       return response.json();
     },
     onSuccess: () => {

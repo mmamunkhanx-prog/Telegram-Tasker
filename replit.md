@@ -74,6 +74,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Admin Panel
 - Access at /admin-master route (hidden from nav)
+- **Only Telegram ID 1991771063 has admin access** (configurable via ADMIN_TELEGRAM_ID env var)
+- Server-side middleware validates admin access on all admin API endpoints
 - View pending deposits/withdrawals
 - Approve/reject transactions with proper balance handling
 - Dashboard shows platform statistics
@@ -126,8 +128,11 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 ### December 22, 2025
-- Fixed withdrawal rejection logic to properly refund balance using `transaction.type === "withdraw"` instead of relying on frontend payload
-- Fixed deposit approval logic to use `transaction.type === "deposit"` for consistency
-- Migrated from Firebase/in-memory storage to PostgreSQL with Drizzle ORM
+- Implemented admin access control with Telegram ID 1991771063 as sole admin
+- Added server-side requireAdmin middleware for all admin API endpoints
+- Admin status is now verified on each login and synced with database
+- Implemented real Telegram Bot API verification for task completion (using TELEGRAM_BOT_TOKEN)
+- Fixed withdrawal rejection logic to properly refund balance
+- Fixed deposit approval logic for consistency
+- Migrated from in-memory storage to PostgreSQL with Drizzle ORM
 - Added comprehensive data-testid attributes for testing
-- All e2e tests passing for core functionality
