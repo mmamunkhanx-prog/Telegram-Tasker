@@ -286,6 +286,7 @@ export async function registerRoutes(
       const maxMembers = Math.floor(validated.totalBudget / validated.rewardPerMember);
       const task = await storage.createTask({
         ...validated,
+        titleBn: validated.titleBn || null,
         creatorId,
         remainingBudget: validated.totalBudget,
         completedCount: 0,
@@ -569,6 +570,166 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error rejecting transaction:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // ==================== TELEGRAM BOT WEBHOOK ====================
+  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  const MINI_APP_URL = "https://telegram-tasker--mamunkhann.replit.app";
+  const CHANNEL_USERNAME = "hiddenn_channel";
+  const CHANNEL_LINK = `https://t.me/${CHANNEL_USERNAME}`;
+  const BOT_USERNAME = "Promot_ebot";
+
+  // Telegram Bot Webhook Handler
+  app.post("/api/telegram/webhook", async (req, res) => {
+    try {
+      const update = req.body;
+      console.log("Telegram update:", JSON.stringify(update, null, 2));
+
+      if (!BOT_TOKEN) {
+        console.error("No TELEGRAM_BOT_TOKEN configured");
+        return res.sendStatus(200);
+      }
+
+      // Handle /start command
+      if (update.message?.text?.startsWith("/start")) {
+        const chatId = update.message.chat.id;
+        const userId = update.message.from.id.toString();
+        const firstName = update.message.from.first_name || "User";
+        
+        // Extract referral code if present
+        const startParam = update.message.text.split(" ")[1];
+        
+        // Store referral info in user record if they exist
+        if (startParam) {
+          const existingUser = await storage.getUserByTelegramId(userId);
+          if (!existingUser) {
+            // User will be created when they open the mini app
+            console.log(`New user ${userId} came via referral: ${startParam}`);
+          }
+        }
+
+        const welcomeMessage = `Welcome, ${firstName}! To start earning, please join our channel and verify. Then you can open the Mini App.`;
+        
+        const inlineKeyboard = {
+          inline_keyboard: [
+            [{ text: "Join Channel", url: CHANNEL_LINK }],
+            [{ text: "Verify Join", callback_data: `verify_join_${userId}` }],
+            [{ text: "Open Mini App", web_app: { url: MINI_APP_URL } }]
+          ]
+        };
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: welcomeMessage,
+            reply_markup: inlineKeyboard
+          })
+        });
+      }
+
+      // Handle callback queries (Verify Join button)
+      if (update.callback_query) {
+        const callbackData = update.callback_query.data;
+        const chatId = update.callback_query.message.chat.id;
+        const callbackQueryId = update.callback_query.id;
+
+        if (callbackData?.startsWith("verify_join_")) {
+          const telegramUserId = callbackData.replace("verify_join_", "");
+          
+          // Check channel membership
+          const memberResponse = await fetch(
+            `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=@${CHANNEL_USERNAME}&user_id=${telegramUserId}`
+          );
+          const memberData = await memberResponse.json();
+          
+          console.log("Channel membership check:", memberData);
+          
+          let responseText = "";
+          
+          if (memberData.ok) {
+            const status = memberData.result?.status;
+            const isMember = ["creator", "administrator", "member", "restricted"].includes(status);
+            
+            if (isMember) {
+              // User is a member - check if they have pending referral bonus
+              const user = await storage.getUserByTelegramId(telegramUserId);
+              
+              if (user && user.referralBonusPending && user.referredBy && !user.referralBonusCredited) {
+                // Credit referral bonus to referrer
+                const referrer = await storage.getUser(user.referredBy);
+                if (referrer) {
+                  await storage.updateUser(referrer.id, {
+                    balance: referrer.balance + 2, // 2 BDT bonus
+                  });
+                  await storage.createTransaction({
+                    userId: referrer.id,
+                    type: "referral_bonus",
+                    amount: 2,
+                    status: "approved",
+                    note: `Referral bonus from ${user.firstName}`,
+                  });
+                  console.log(`Credited 2 BDT to referrer ${referrer.id}`);
+                }
+                
+                // Mark bonus as credited
+                await storage.updateUser(user.id, {
+                  referralBonusPending: false,
+                  referralBonusCredited: true,
+                });
+                
+                responseText = "Verified! You've joined the channel. Your friend earned 2 BDT bonus! Now open the Mini App to start earning.";
+              } else {
+                responseText = "Verified! You've joined the channel. Now open the Mini App to start earning.";
+              }
+            } else {
+              responseText = "You haven't joined the channel yet. Please click 'Join Channel' first, then try again.";
+            }
+          } else {
+            responseText = "Could not verify. Please make sure you've joined the channel and try again.";
+          }
+
+          // Answer the callback query
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              callback_query_id: callbackQueryId,
+              text: responseText,
+              show_alert: true
+            })
+          });
+        }
+      }
+
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Telegram webhook error:", error);
+      res.sendStatus(200); // Always return 200 to prevent Telegram retries
+    }
+  });
+
+  // Endpoint to set webhook URL
+  app.get("/api/telegram/set-webhook", async (req, res) => {
+    try {
+      if (!BOT_TOKEN) {
+        return res.status(500).json({ error: "No bot token configured" });
+      }
+      
+      const webhookUrl = `${MINI_APP_URL}/api/telegram/webhook`;
+      
+      const response = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`
+      );
+      const data = await response.json();
+      
+      console.log("Set webhook response:", data);
+      res.json(data);
+    } catch (error) {
+      console.error("Error setting webhook:", error);
+      res.status(500).json({ error: "Failed to set webhook" });
     }
   });
 
