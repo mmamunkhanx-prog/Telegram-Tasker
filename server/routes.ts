@@ -124,41 +124,43 @@ export async function registerRoutes(
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
       
       if (!botToken) {
-        console.log("No bot token, simulating verification...");
-        // Simulate successful verification for testing
-        // In production, this should fail
-      } else {
-        try {
-          const response = await fetch(
-            `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(REFERRAL_CHANNEL)}&user_id=${user.telegramId}`
-          );
-          
-          const data = await response.json();
-          console.log("Channel membership check:", data);
-          
-          if (!data.ok) {
-            return res.json({ 
-              success: false, 
-              error: "Could not verify channel membership",
-              needsJoin: true 
-            });
-          }
-
-          const status = data.result?.status;
-          const isMember = ["creator", "administrator", "member", "restricted"].includes(status);
-          
-          if (!isMember) {
-            return res.json({ 
-              success: false, 
-              message: "Please join the channel first",
-              needsJoin: true,
-              channelLink: `https://t.me/${REFERRAL_CHANNEL.replace("@", "")}`
-            });
-          }
-        } catch (err) {
-          console.error("Telegram API error:", err);
-          return res.status(500).json({ error: "Failed to verify channel membership" });
+        console.log("No bot token - cannot verify channel membership");
+        return res.status(503).json({ 
+          error: "Channel verification service unavailable. Please try again later." 
+        });
+      }
+      
+      try {
+        const response = await fetch(
+          `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(REFERRAL_CHANNEL)}&user_id=${user.telegramId}`
+        );
+        
+        const data = await response.json();
+        console.log("Channel membership check:", data);
+        
+        if (!data.ok) {
+          return res.json({ 
+            success: false, 
+            error: "Could not verify channel membership",
+            needsJoin: true,
+            channelLink: `https://t.me/${REFERRAL_CHANNEL.replace("@", "")}`
+          });
         }
+
+        const status = data.result?.status;
+        const isMember = ["creator", "administrator", "member", "restricted"].includes(status);
+        
+        if (!isMember) {
+          return res.json({ 
+            success: false, 
+            message: "Please join the channel first",
+            needsJoin: true,
+            channelLink: `https://t.me/${REFERRAL_CHANNEL.replace("@", "")}`
+          });
+        }
+      } catch (err) {
+        console.error("Telegram API error:", err);
+        return res.status(500).json({ error: "Failed to verify channel membership" });
       }
 
       // Credit bonus to referrer
