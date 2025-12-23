@@ -70,6 +70,10 @@ export const taskCompletions = pgTable("task_completions", {
   taskId: varchar("task_id", { length: 36 }).notNull(),
   userId: varchar("user_id", { length: 36 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
+  rewardAmount: real("reward_amount"),
+  verifiedAt: timestamp("verified_at"),
+  retentionChecked: boolean("retention_checked").notNull().default(false),
+  deducted: boolean("deducted").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
