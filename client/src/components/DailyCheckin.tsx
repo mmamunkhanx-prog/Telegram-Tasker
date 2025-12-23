@@ -51,7 +51,7 @@ export function DailyCheckin() {
 
   const claimMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/users/daily-checkin", {});
+      const response = await apiRequest("POST", "/api/users/daily-checkin", { userId: user?.id });
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Failed to claim reward");

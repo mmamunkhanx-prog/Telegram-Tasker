@@ -31,7 +31,7 @@ export async function registerRoutes(
   // Daily check-in endpoint
   app.post("/api/users/daily-checkin", async (req, res) => {
     try {
-      const userId = req.headers["x-user-id"] as string;
+      const { userId } = req.body;
       
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
