@@ -15,6 +15,8 @@ export const translations = {
     
     // Tasks
     availableTasks: "Available Tasks",
+    ongoing: "Ongoing",
+    completedTasks: "Completed",
     joinChannel: "Join Channel",
     start: "Start",
     verify: "Verify",
@@ -22,6 +24,8 @@ export const translations = {
     completed: "Completed",
     reward: "Reward",
     noTasks: "No tasks available",
+    noOngoingTasks: "No ongoing tasks",
+    noCompletedTasks: "No completed tasks yet",
     taskCompleted: "Task completed! Reward added.",
     taskFailed: "Verification failed. Please join the channel first.",
     
@@ -109,6 +113,8 @@ export const translations = {
     
     // Tasks
     availableTasks: "উপলব্ধ টাস্ক",
+    ongoing: "চলমান",
+    completedTasks: "সম্পন্ন",
     joinChannel: "চ্যানেলে যোগ দিন",
     start: "শুরু",
     verify: "যাচাই",
@@ -116,6 +122,8 @@ export const translations = {
     completed: "সম্পন্ন",
     reward: "পুরস্কার",
     noTasks: "কোন টাস্ক নেই",
+    noOngoingTasks: "কোন চলমান টাস্ক নেই",
+    noCompletedTasks: "এখনো কোন সম্পন্ন টাস্ক নেই",
     taskCompleted: "টাস্ক সম্পন্ন! পুরস্কার যোগ হয়েছে।",
     taskFailed: "যাচাই ব্যর্থ। অনুগ্রহ করে প্রথমে চ্যানেলে যোগ দিন।",
     
