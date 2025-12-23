@@ -125,8 +125,16 @@ Preferred communication style: Simple, everyday language.
 - POST /api/admin/transactions/:id/approve - Approve transaction
 
 ### Retention
-- POST /api/retention/check - Check if users left channels within 48 hours and deduct rewards
-- POST /api/admin/transactions/:id/reject - Reject transaction
+- POST /api/retention/check - Check if users left channels within 48 hours and deduct rewards (manual API call)
+- Automated hourly cron job (server/scheduler.ts) - Runs retention checks automatically every hour at the start of the hour
+
+### Scheduled Tasks
+- **Retention Check Scheduler** (server/scheduler.ts)
+  - Runs every hour via node-cron
+  - Automatically checks pending task completions for 48-hour retention
+  - Deducts balance if users left channels early
+  - Sends Telegram notifications for deductions
+  - Handles insufficient balance cases gracefully
 
 ## Recent Changes
 
@@ -137,6 +145,8 @@ Preferred communication style: Simple, everyday language.
 - Retention check deducts from referrer for referral tasks, from user for personal tasks
 - TaskCompletions now track rewardAmount, verifiedAt, retentionChecked, deducted
 - Telegram notifications sent when deductions occur
+- Created automated cron scheduler (server/scheduler.ts) for hourly retention checks
+- Installed node-cron for scheduling and task automation
 
 ### December 22, 2025
 - Implemented admin access control with Telegram ID 1991771063 as sole admin
