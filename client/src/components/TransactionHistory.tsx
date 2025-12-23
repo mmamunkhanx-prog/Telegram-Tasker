@@ -28,6 +28,11 @@ export function TransactionHistory() {
 
   const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions", user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/transactions?userId=${user?.id}`);
+      if (!res.ok) throw new Error("Failed to fetch transactions");
+      return res.json();
+    },
     enabled: !!user?.id,
   });
 
@@ -57,8 +62,9 @@ export function TransactionHistory() {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString(language === "bn" ? "bn-BD" : "en-US", {
+  const formatDate = (dateValue: Date | string | number) => {
+    const date = new Date(dateValue);
+    return date.toLocaleDateString(language === "bn" ? "bn-BD" : "en-US", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
