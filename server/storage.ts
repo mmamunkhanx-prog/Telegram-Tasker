@@ -42,6 +42,7 @@ export interface IStorage {
   getUserTaskCompletions(userId: string): Promise<TaskCompletion[]>;
   createTaskCompletion(completion: InsertTaskCompletion): Promise<TaskCompletion>;
   updateTaskCompletion(id: string, updates: Partial<TaskCompletion>): Promise<TaskCompletion | undefined>;
+  getPendingRetentionChecks(): Promise<TaskCompletion[]>;
 
   // Transactions
   getTransaction(id: string): Promise<Transaction | undefined>;
@@ -139,6 +140,18 @@ export class DatabaseStorage implements IStorage {
   async updateTaskCompletion(id: string, updates: Partial<TaskCompletion>): Promise<TaskCompletion | undefined> {
     const [tc] = await db.update(taskCompletions).set(updates).where(eq(taskCompletions.id, id)).returning();
     return tc;
+  }
+
+  async getPendingRetentionChecks(): Promise<TaskCompletion[]> {
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    return db.select().from(taskCompletions)
+      .where(and(
+        eq(taskCompletions.status, "verified"),
+        eq(taskCompletions.retentionChecked, false),
+        eq(taskCompletions.deducted, false),
+        sql`${taskCompletions.verifiedAt} IS NOT NULL`,
+        sql`${taskCompletions.verifiedAt} <= ${fortyEightHoursAgo}`
+      ));
   }
 
   // Transactions

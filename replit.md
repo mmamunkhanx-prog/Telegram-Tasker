@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Tasks**: Channel promotion tasks with budget management
   - Fields: id, creatorId, title, titleBn, channelUsername, channelLink, rewardPerMember, totalBudget, remainingBudget, completedCount, maxMembers, isActive, createdAt
 - **TaskCompletions**: Track user task progress and verification
-  - Fields: id, taskId, userId, status (pending/verified/failed), createdAt
+  - Fields: id, taskId, userId, status (pending/verified/failed), rewardAmount, verifiedAt, retentionChecked, deducted, createdAt
 - **Transactions**: Deposits, withdrawals, earnings, and referral bonuses
   - Fields: id, userId, type, amount, status, method, walletAddress, transactionId, note, createdAt
 
@@ -123,9 +123,20 @@ Preferred communication style: Simple, everyday language.
 - GET /api/admin/pending-deposits - Pending deposits list
 - GET /api/admin/pending-withdrawals - Pending withdrawals list
 - POST /api/admin/transactions/:id/approve - Approve transaction
+
+### Retention
+- POST /api/retention/check - Check if users left channels within 48 hours and deduct rewards
 - POST /api/admin/transactions/:id/reject - Reject transaction
 
 ## Recent Changes
+
+### December 23, 2025
+- Added Ongoing/Completed tabs to Tasks page with filtering logic
+- Implemented retention check system for 48-hour channel membership verification
+- Added deduction transaction type for early channel leavers
+- Retention check deducts from referrer for referral tasks, from user for personal tasks
+- TaskCompletions now track rewardAmount, verifiedAt, retentionChecked, deducted
+- Telegram notifications sent when deductions occur
 
 ### December 22, 2025
 - Implemented admin access control with Telegram ID 1991771063 as sole admin

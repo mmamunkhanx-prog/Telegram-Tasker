@@ -4,7 +4,7 @@ import { t } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownCircle, ArrowUpCircle, Gift, Coins, Users } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Gift, Coins, Users, MinusCircle } from "lucide-react";
 import type { Transaction } from "@shared/schema";
 
 const typeIcons: Record<string, typeof ArrowDownCircle> = {
@@ -13,6 +13,7 @@ const typeIcons: Record<string, typeof ArrowDownCircle> = {
   task_earning: Gift,
   task_creation: Coins,
   referral_bonus: Users,
+  deduction: MinusCircle,
 };
 
 const typeLabels: Record<string, string> = {
@@ -21,6 +22,7 @@ const typeLabels: Record<string, string> = {
   task_earning: "Task Earning",
   task_creation: "Task Created",
   referral_bonus: "Referral Bonus",
+  deduction: "Deduction",
 };
 
 export function TransactionHistory() {

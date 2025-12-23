@@ -77,6 +77,7 @@ export const translations = {
     pending: "Pending",
     approved: "Approved",
     rejected: "Rejected",
+    deduction: "Deduction",
     
     // Admin
     adminPanel: "Admin Panel",
@@ -175,6 +176,7 @@ export const translations = {
     pending: "অপেক্ষমাণ",
     approved: "অনুমোদিত",
     rejected: "প্রত্যাখ্যাত",
+    deduction: "কর্তন",
     
     // Admin
     adminPanel: "অ্যাডমিন প্যানেল",
