@@ -16,7 +16,7 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
 
   const referralLink = user
-    ? `https://t.me/YourBotUsername?start=${user.referralCode}`
+    ? `https://t.me/Promot_ebot?start=${user.referralCode}`
     : "";
 
   const handleCopyReferral = async () => {
