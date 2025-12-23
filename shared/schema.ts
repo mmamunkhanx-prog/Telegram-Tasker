@@ -14,6 +14,8 @@ export const users = pgTable("users", {
   balance: real("balance").notNull().default(0),
   referralCode: varchar("referral_code", { length: 20 }).notNull().unique(),
   referredBy: varchar("referred_by", { length: 36 }),
+  referralBonusPending: boolean("referral_bonus_pending").notNull().default(false), // True if user needs to verify channel join
+  referralBonusCredited: boolean("referral_bonus_credited").notNull().default(false), // True if bonus already given to referrer
   isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

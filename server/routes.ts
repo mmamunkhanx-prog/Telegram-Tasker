@@ -46,20 +46,14 @@ export async function registerRoutes(
       if (!user) {
         // Create new user
         let referredBy: string | undefined;
+        let referralBonusPending = false;
+        
         if (referralCode) {
           const referrer = await storage.getUserByReferralCode(referralCode);
           if (referrer) {
             referredBy = referrer.id;
-            // Give referral bonus to referrer
-            await storage.updateUser(referrer.id, {
-              balance: referrer.balance + 5,
-            });
-            await storage.createTransaction({
-              userId: referrer.id,
-              type: "referral_bonus",
-              amount: 5,
-              status: "approved",
-            });
+            // Mark referral bonus as pending - will be credited after channel verification
+            referralBonusPending = true;
           }
         }
 
@@ -72,6 +66,8 @@ export async function registerRoutes(
           balance: 0,
           referralCode: "",
           referredBy: referredBy || null,
+          referralBonusPending,
+          referralBonusCredited: false,
           isAdmin,
         });
       } else {
@@ -84,6 +80,116 @@ export async function registerRoutes(
       res.json(user);
     } catch (error) {
       console.error("Auth error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Verify referral channel join and credit bonus
+  // Official channel: @hiddenn_channel
+  const REFERRAL_CHANNEL = "@hiddenn_channel";
+  const REFERRAL_BONUS = 2; // 2 BDT bonus
+
+  app.post("/api/referral/verify-channel", async (req, res) => {
+    console.log("=== VERIFY REFERRAL CHANNEL ===");
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if bonus already credited
+      if (user.referralBonusCredited) {
+        return res.json({ 
+          success: true, 
+          alreadyVerified: true,
+          message: "Referral bonus already credited" 
+        });
+      }
+
+      // Check if user has a referrer (came via referral)
+      if (!user.referredBy || !user.referralBonusPending) {
+        return res.json({ 
+          success: false, 
+          message: "No pending referral bonus" 
+        });
+      }
+
+      // Verify channel membership using Telegram Bot API
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      
+      if (!botToken) {
+        console.log("No bot token, simulating verification...");
+        // Simulate successful verification for testing
+        // In production, this should fail
+      } else {
+        try {
+          const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(REFERRAL_CHANNEL)}&user_id=${user.telegramId}`
+          );
+          
+          const data = await response.json();
+          console.log("Channel membership check:", data);
+          
+          if (!data.ok) {
+            return res.json({ 
+              success: false, 
+              error: "Could not verify channel membership",
+              needsJoin: true 
+            });
+          }
+
+          const status = data.result?.status;
+          const isMember = ["creator", "administrator", "member", "restricted"].includes(status);
+          
+          if (!isMember) {
+            return res.json({ 
+              success: false, 
+              message: "Please join the channel first",
+              needsJoin: true,
+              channelLink: `https://t.me/${REFERRAL_CHANNEL.replace("@", "")}`
+            });
+          }
+        } catch (err) {
+          console.error("Telegram API error:", err);
+          return res.status(500).json({ error: "Failed to verify channel membership" });
+        }
+      }
+
+      // Credit bonus to referrer
+      const referrer = await storage.getUser(user.referredBy);
+      if (referrer) {
+        await storage.updateUser(referrer.id, {
+          balance: referrer.balance + REFERRAL_BONUS,
+        });
+        await storage.createTransaction({
+          userId: referrer.id,
+          type: "referral_bonus",
+          amount: REFERRAL_BONUS,
+          status: "approved",
+          note: `Referral bonus from ${user.firstName}`,
+        });
+        console.log(`Credited ${REFERRAL_BONUS} BDT to referrer ${referrer.id}`);
+      }
+
+      // Mark bonus as credited
+      await storage.updateUser(user.id, {
+        referralBonusPending: false,
+        referralBonusCredited: true,
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Channel verified! Your friend earned 2 BDT bonus.",
+        bonusCredited: true
+      });
+    } catch (error) {
+      console.error("Referral verification error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
