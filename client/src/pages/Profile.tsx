@@ -58,26 +58,35 @@ export default function Profile() {
 
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-medium">{t("referralLink", language)}</label>
-            <div className="flex gap-2">
-              <div className="flex-1 px-3 py-2 rounded-lg bg-muted text-sm truncate border border-border">
-                {referralLink || "Loading..."}
-              </div>
-              <Button
-                size="icon"
-                variant="secondary"
-                onClick={handleCopyReferral}
-                disabled={!referralLink}
-                data-testid="button-copy-referral"
-              >
-                {copied ? (
-                  <Check className="w-4 h-4 text-green-500" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </Button>
+            <div className="px-3 py-2 rounded-lg bg-muted text-sm truncate border border-border">
+              {referralLink || "Loading..."}
             </div>
+            <Button
+              variant="default"
+              onClick={handleCopyReferral}
+              disabled={!referralLink}
+              className="w-full"
+              data-testid="button-copy-referral"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-2 text-green-500" />
+                  {language === "bn" ? "কপি হয়েছে!" : "Copied!"}
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  {language === "bn" ? "লিংক কপি করুন" : "Copy Link"}
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              {language === "bn" 
+                ? "বন্ধুকে আমন্ত্রণ জানান এবং ২ BDT বোনাস পান!" 
+                : "Invite friends and earn 2 BDT bonus!"}
+            </p>
           </div>
         </CardContent>
       </Card>
