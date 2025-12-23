@@ -28,6 +28,54 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Daily check-in endpoint
+  app.post("/api/users/daily-checkin", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Check if user can claim (24 hours since last claim)
+      const now = new Date();
+      if (user.dailyCheckinLastClaimed) {
+        const lastClaimed = new Date(user.dailyCheckinLastClaimed).getTime();
+        const timeSinceLastClaim = now.getTime() - lastClaimed;
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        
+        if (timeSinceLastClaim < twentyFourHours) {
+          return res.status(400).json({ error: "Already claimed today. Try again later." });
+        }
+      }
+
+      // Update balance and last claimed time
+      await storage.updateUser(userId, {
+        balance: user.balance + 1,
+        dailyCheckinLastClaimed: now,
+      });
+
+      // Create transaction record
+      await storage.createTransaction({
+        userId,
+        type: "daily_bonus",
+        amount: 1,
+        status: "approved",
+        note: "Daily check-in reward",
+      });
+
+      res.json({ success: true, newBalance: user.balance + 1 });
+    } catch (error) {
+      console.error("Error claiming daily reward:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Auth - Telegram auto-login
   app.post("/api/auth/telegram", async (req, res) => {
     try {
@@ -286,7 +334,7 @@ export async function registerRoutes(
       const maxMembers = Math.floor(validated.totalBudget / validated.rewardPerMember);
       const task = await storage.createTask({
         ...validated,
-        titleBn: validated.titleBn || null,
+        titleBn: null,
         creatorId,
         remainingBudget: validated.totalBudget,
         completedCount: 0,

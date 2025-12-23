@@ -17,7 +17,6 @@ import { z } from "zod";
 // Use coerce to convert string inputs to numbers
 const createTaskFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
-  titleBn: z.string().optional(),
   channelUsername: z.string().min(1, "Channel username is required"),
   channelLink: z.string().url("Must be a valid URL"),
   rewardPerMember: z.coerce.number().min(0.5, "Minimum reward is 0.5 BDT"),
@@ -34,7 +33,6 @@ export default function CreateTask() {
     resolver: zodResolver(createTaskFormSchema),
     defaultValues: {
       title: "",
-      titleBn: "",
       channelUsername: "",
       channelLink: "",
       rewardPerMember: 0.5,
@@ -165,24 +163,6 @@ export default function CreateTask() {
                         {...field}
                         placeholder="Join our Telegram channel"
                         data-testid="input-task-title"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="titleBn"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("taskTitleBn", language)}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="আমাদের টেলিগ্রাম চ্যানেলে যোগ দিন"
-                        data-testid="input-task-title-bn"
                       />
                     </FormControl>
                     <FormMessage />

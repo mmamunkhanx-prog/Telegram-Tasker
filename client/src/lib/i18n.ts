@@ -10,8 +10,11 @@ export const translations = {
     
     // Home
     mainBalance: "Main Balance",
-    topEarners: "Top Earners",
-    viewAll: "View All",
+    dailyCheckin: "Daily Check-in",
+    claimReward: "Claim Reward",
+    claimDaily: "Claim Daily +1 BDT",
+    claimedToday: "Claimed Today",
+    nextClaimIn: "Next claim in",
     
     // Tasks
     availableTasks: "Available Tasks",
@@ -109,8 +112,11 @@ export const translations = {
     
     // Home
     mainBalance: "মূল ব্যালেন্স",
-    topEarners: "শীর্ষ উপার্জনকারী",
-    viewAll: "সব দেখুন",
+    dailyCheckin: "দৈনিক চেক-ইন",
+    claimReward: "পুরস্কার দাবি করুন",
+    claimDaily: "দৈনিক দাবি করুন +১ ৳",
+    claimedToday: "আজ দাবি করা হয়েছে",
+    nextClaimIn: "পরবর্তী দাবি",
     
     // Tasks
     availableTasks: "উপলব্ধ টাস্ক",

@@ -138,7 +138,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### December 23, 2025
+### December 23, 2025 (Part 2)
+- Simplified Create Task page: Removed 'Task Title (Bangla)' field
+- Added Daily Check-in feature with 1 BDT reward
+- Daily Check-in logic: Users can claim once every 24 hours with countdown timer
+- Removed Top Earners section from Homepage
+- Created DailyCheckin component with countdown timer UI
+- Added POST /api/users/daily-checkin endpoint for claiming daily rewards
+- Users table now tracks dailyCheckinLastClaimed timestamp
+
+### December 23, 2025 (Part 1)
 - Added Ongoing/Completed tabs to Tasks page with filtering logic
 - Implemented retention check system for 48-hour channel membership verification
 - Added deduction transaction type for early channel leavers

@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   referralBonusPending: boolean("referral_bonus_pending").notNull().default(false), // True if user needs to verify channel join
   referralBonusCredited: boolean("referral_bonus_credited").notNull().default(false), // True if bonus already given to referrer
   isAdmin: boolean("is_admin").notNull().default(false),
+  dailyCheckinLastClaimed: timestamp("daily_checkin_last_claimed"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -49,6 +50,7 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
   creatorId: true, // Handled separately in API
+  titleBn: true, // Remove Bangla title field
   remainingBudget: true,
   completedCount: true,
   maxMembers: true,
