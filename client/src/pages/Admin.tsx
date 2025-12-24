@@ -18,8 +18,14 @@ import {
   Check,
   X,
   Shield,
+  Image,
+  Trash2,
+  Plus,
+  Loader2,
 } from "lucide-react";
-import type { AdminStats, Transaction } from "@shared/schema";
+import { Input } from "@/components/ui/input";
+import type { AdminStats, Transaction, Banner } from "@shared/schema";
+import { useState } from "react";
 import { Redirect } from "wouter";
 
 // Admin API request helper that includes x-user-id header
@@ -78,6 +84,60 @@ export default function Admin() {
     enabled: !!user?.isAdmin,
   });
 
+  const { data: bannersList, isLoading: bannersLoading } = useQuery<Banner[]>({
+    queryKey: ["/api/admin/banners"],
+    queryFn: () => adminQueryFn("/api/admin/banners"),
+    enabled: !!user?.isAdmin,
+  });
+
+  // Banner form state
+  const [bannerImageUrl, setBannerImageUrl] = useState("");
+  const [bannerCaption, setBannerCaption] = useState("");
+  const [bannerRedirectLink, setBannerRedirectLink] = useState("");
+
+  const createBannerMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("Not authenticated");
+      const response = await adminApiRequest("POST", "/api/admin/banners", user.id, {
+        imageUrl: bannerImageUrl,
+        caption: bannerCaption,
+        redirectLink: bannerRedirectLink,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      hapticFeedback("heavy");
+      toast({ title: t("success", language), description: "Banner created" });
+      setBannerImageUrl("");
+      setBannerCaption("");
+      setBannerRedirectLink("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banners"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/banners"] });
+    },
+    onError: (error) => {
+      toast({ title: t("error", language), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteBannerMutation = useMutation({
+    mutationFn: async (bannerId: string) => {
+      if (!user?.id) throw new Error("Not authenticated");
+      const response = await fetch(`/api/admin/banners/${bannerId}`, {
+        method: "DELETE",
+        headers: { "x-user-id": user.id },
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete banner");
+      return response.json();
+    },
+    onSuccess: () => {
+      hapticFeedback("medium");
+      toast({ title: t("success", language), description: "Banner deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banners"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/banners"] });
+    },
+  });
+
   const approveMutation = useMutation({
     mutationFn: async ({ id, type }: { id: string; type: "deposit" | "withdrawal" }) => {
       if (!user?.id) throw new Error("Not authenticated");
@@ -121,7 +181,7 @@ export default function Admin() {
     { label: t("activeTasks", language), value: stats?.activeTasks ?? 0, icon: ListTodo, color: "text-purple-500" },
   ];
 
-  const formatDate = (timestamp: number) => {
+  const formatDate = (timestamp: Date | string | number) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -164,14 +224,18 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="deposits">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="deposits" data-testid="admin-tab-deposits">
-            <ArrowDownCircle className="w-4 h-4 mr-1.5" />
-            Deposits ({pendingDeposits?.length ?? 0})
+            <ArrowDownCircle className="w-4 h-4 mr-1" />
+            Deposits
           </TabsTrigger>
           <TabsTrigger value="withdrawals" data-testid="admin-tab-withdrawals">
-            <ArrowUpCircle className="w-4 h-4 mr-1.5" />
-            Withdrawals ({pendingWithdrawals?.length ?? 0})
+            <ArrowUpCircle className="w-4 h-4 mr-1" />
+            Withdrawals
+          </TabsTrigger>
+          <TabsTrigger value="banners" data-testid="admin-tab-banners">
+            <Image className="w-4 h-4 mr-1" />
+            Banners
           </TabsTrigger>
         </TabsList>
 
@@ -282,6 +346,88 @@ export default function Admin() {
                       >
                         <X className="w-4 h-4 mr-1" />
                         {t("reject", language)}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="banners" className="mt-4">
+          <Card className="mb-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Add New Banner</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                placeholder="Image URL (e.g., https://example.com/banner.jpg)"
+                value={bannerImageUrl}
+                onChange={(e) => setBannerImageUrl(e.target.value)}
+                data-testid="input-banner-image-url"
+              />
+              <Input
+                placeholder="Caption / Title"
+                value={bannerCaption}
+                onChange={(e) => setBannerCaption(e.target.value)}
+                data-testid="input-banner-caption"
+              />
+              <Input
+                placeholder="Redirect Link (e.g., https://t.me/channel)"
+                value={bannerRedirectLink}
+                onChange={(e) => setBannerRedirectLink(e.target.value)}
+                data-testid="input-banner-redirect-link"
+              />
+              <Button
+                onClick={() => createBannerMutation.mutate()}
+                disabled={!bannerImageUrl || !bannerCaption || !bannerRedirectLink || createBannerMutation.isPending}
+                className="w-full"
+                data-testid="button-create-banner"
+              >
+                {createBannerMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Add Banner
+              </Button>
+            </CardContent>
+          </Card>
+
+          {bannersLoading ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : !bannersList?.length ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No banners yet
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {bannersList.map((banner) => (
+                <Card key={banner.id}>
+                  <CardContent className="p-4">
+                    <div className="flex gap-3">
+                      <img
+                        src={banner.imageUrl}
+                        alt={banner.caption}
+                        className="w-20 h-12 object-cover rounded-md bg-muted"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{banner.caption}</p>
+                        <p className="text-xs text-muted-foreground truncate">{banner.redirectLink}</p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        onClick={() => deleteBannerMutation.mutate(banner.id)}
+                        disabled={deleteBannerMutation.isPending}
+                        data-testid={`button-delete-banner-${banner.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardContent>
