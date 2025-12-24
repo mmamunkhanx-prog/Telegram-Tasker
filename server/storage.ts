@@ -5,6 +5,7 @@ import {
   tasks,
   taskCompletions,
   transactions,
+  banners,
   type User,
   type InsertUser,
   type Task,
@@ -13,6 +14,8 @@ import {
   type InsertTaskCompletion,
   type Transaction,
   type InsertTransaction,
+  type Banner,
+  type InsertBanner,
   type AdminStats,
 } from "@shared/schema";
 
@@ -54,6 +57,12 @@ export interface IStorage {
 
   // Admin
   getAdminStats(): Promise<AdminStats>;
+
+  // Banners
+  getAllBanners(): Promise<Banner[]>;
+  getActiveBanners(): Promise<Banner[]>;
+  createBanner(banner: InsertBanner): Promise<Banner>;
+  deleteBanner(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -206,6 +215,27 @@ export class DatabaseStorage implements IStorage {
       pendingWithdrawals: allTransactions.filter((t) => t.type === "withdraw" && t.status === "pending").length,
       activeTasks: allTasks.filter((t) => t.isActive).length,
     };
+  }
+
+  // Banners
+  async getAllBanners(): Promise<Banner[]> {
+    return db.select().from(banners).orderBy(desc(banners.createdAt));
+  }
+
+  async getActiveBanners(): Promise<Banner[]> {
+    return db.select().from(banners)
+      .where(eq(banners.isActive, true))
+      .orderBy(desc(banners.createdAt));
+  }
+
+  async createBanner(banner: InsertBanner): Promise<Banner> {
+    const [newBanner] = await db.insert(banners).values(banner).returning();
+    return newBanner;
+  }
+
+  async deleteBanner(id: string): Promise<boolean> {
+    const result = await db.delete(banners).where(eq(banners.id, id));
+    return true;
   }
 }
 

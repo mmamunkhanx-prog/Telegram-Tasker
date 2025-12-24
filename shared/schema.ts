@@ -122,6 +122,24 @@ export const withdrawSchema = z.object({
   walletAddress: z.string().min(1, "Wallet address is required"),
 });
 
+// Banners table
+export const banners = pgTable("banners", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  imageUrl: text("image_url").notNull(),
+  caption: varchar("caption", { length: 200 }).notNull(),
+  redirectLink: text("redirect_link").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBannerSchema = createInsertSchema(banners).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBanner = z.infer<typeof insertBannerSchema>;
+export type Banner = typeof banners.$inferSelect;
+
 // Admin stats type
 export interface AdminStats {
   totalUsers: number;

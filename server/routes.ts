@@ -599,6 +599,64 @@ export async function registerRoutes(
     }
   });
 
+  // ==================== BANNER MANAGEMENT ====================
+  // Get all active banners (public)
+  app.get("/api/banners", async (req, res) => {
+    try {
+      const activeBanners = await storage.getActiveBanners();
+      res.json(activeBanners);
+    } catch (error) {
+      console.error("Error fetching banners:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Admin: Get all banners
+  app.get("/api/admin/banners", requireAdmin, async (req, res) => {
+    try {
+      const allBanners = await storage.getAllBanners();
+      res.json(allBanners);
+    } catch (error) {
+      console.error("Error fetching banners:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Admin: Create banner
+  app.post("/api/admin/banners", requireAdmin, async (req, res) => {
+    try {
+      const { imageUrl, caption, redirectLink } = req.body;
+      
+      if (!imageUrl || !caption || !redirectLink) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+
+      const banner = await storage.createBanner({
+        imageUrl,
+        caption,
+        redirectLink,
+        isActive: true,
+      });
+
+      res.json(banner);
+    } catch (error) {
+      console.error("Error creating banner:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Admin: Delete banner
+  app.delete("/api/admin/banners/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteBanner(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting banner:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.post("/api/admin/transactions/:id/reject", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
