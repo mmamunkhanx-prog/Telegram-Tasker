@@ -34,13 +34,15 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Models
 - **Users**: Telegram authentication, balance tracking, referral system
-  - Fields: id, telegramId, username, firstName, lastName, photoUrl, balance, referralCode, referredBy, isAdmin, createdAt
+  - Fields: id, telegramId, username, firstName, lastName, photoUrl, balance, referralCode, referredBy, isAdmin, dailyCheckinLastClaimed, createdAt
 - **Tasks**: Channel promotion tasks with budget management
   - Fields: id, creatorId, title, titleBn, channelUsername, channelLink, rewardPerMember, totalBudget, remainingBudget, completedCount, maxMembers, isActive, createdAt
 - **TaskCompletions**: Track user task progress and verification
   - Fields: id, taskId, userId, status (pending/verified/failed), rewardAmount, verifiedAt, retentionChecked, deducted, createdAt
 - **Transactions**: Deposits, withdrawals, earnings, and referral bonuses
   - Fields: id, userId, type, amount, status, method, walletAddress, transactionId, note, createdAt
+- **Banners**: Dynamic homepage banner management
+  - Fields: id, imageUrl, caption, redirectLink, isActive, createdAt
 
 ### Authentication
 - **Method**: Telegram WebApp auto-login (no passwords)
@@ -123,6 +125,12 @@ Preferred communication style: Simple, everyday language.
 - GET /api/admin/pending-deposits - Pending deposits list
 - GET /api/admin/pending-withdrawals - Pending withdrawals list
 - POST /api/admin/transactions/:id/approve - Approve transaction
+- GET /api/admin/banners - Get all banners (admin only)
+- POST /api/admin/banners - Create new banner (admin only)
+- DELETE /api/admin/banners/:id - Delete banner (admin only)
+
+### Banners
+- GET /api/banners - Get active banners (public)
 
 ### Retention
 - POST /api/retention/check - Check if users left channels within 48 hours and deduct rewards (manual API call)
@@ -137,6 +145,15 @@ Preferred communication style: Simple, everyday language.
   - Handles insufficient balance cases gracefully
 
 ## Recent Changes
+
+### December 24, 2025
+- Added Dynamic Banner Management System
+- Banners table with imageUrl, caption, redirectLink, isActive fields
+- Admin panel now has Banners tab for CRUD operations (add/delete)
+- BannerSlider component fetches active banners from API
+- Falls back to default gradient banners if no admin banners exist
+- Banners auto-slide every 4 seconds and open redirect links on click
+- Public endpoint GET /api/banners for active banners
 
 ### December 23, 2025 (Part 2)
 - Simplified Create Task page: Removed 'Task Title (Bangla)' field
