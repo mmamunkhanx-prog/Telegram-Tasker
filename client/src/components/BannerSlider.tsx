@@ -3,30 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Banner } from "@shared/schema";
 
-const defaultBanners = [
-  {
-    id: "default-1",
-    imageUrl: "",
-    gradient: "from-blue-600 via-blue-500 to-cyan-400",
-    caption: "Earn by Joining",
-    redirectLink: "",
-  },
-  {
-    id: "default-2",
-    imageUrl: "",
-    gradient: "from-purple-600 via-purple-500 to-pink-400",
-    caption: "Create Tasks",
-    redirectLink: "",
-  },
-  {
-    id: "default-3",
-    imageUrl: "",
-    gradient: "from-green-600 via-green-500 to-emerald-400",
-    caption: "Refer & Earn",
-    redirectLink: "",
-  },
-];
-
 export function BannerSlider() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -34,10 +10,10 @@ export function BannerSlider() {
     queryKey: ["/api/banners"],
   });
 
-  const displayBanners = banners && banners.length > 0 ? banners : null;
-  const totalSlides = displayBanners ? displayBanners.length : defaultBanners.length;
+  const totalSlides = banners?.length || 0;
 
   useEffect(() => {
+    if (totalSlides === 0) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % totalSlides);
     }, 4000);
@@ -45,16 +21,18 @@ export function BannerSlider() {
   }, [totalSlides]);
 
   useEffect(() => {
-    if (currentIndex >= totalSlides) {
+    if (currentIndex >= totalSlides && totalSlides > 0) {
       setCurrentIndex(0);
     }
   }, [totalSlides, currentIndex]);
 
   const goToPrev = () => {
+    if (totalSlides === 0) return;
     setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
   };
 
   const goToNext = () => {
+    if (totalSlides === 0) return;
     setCurrentIndex((prev) => (prev + 1) % totalSlides);
   };
 
@@ -64,6 +42,10 @@ export function BannerSlider() {
     }
   };
 
+  if (!banners || banners.length === 0) {
+    return null;
+  }
+
   return (
     <div data-testid="banner-slider" className="relative">
       <div className="overflow-hidden rounded-xl">
@@ -71,35 +53,24 @@ export function BannerSlider() {
           className="flex transition-transform duration-500 ease-out"
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
-          {displayBanners ? (
-            displayBanners.map((banner) => (
-              <div
-                key={banner.id}
-                onClick={() => handleBannerClick(banner.redirectLink)}
-                className="flex-shrink-0 w-full aspect-[2/1] rounded-xl overflow-hidden cursor-pointer relative"
-                data-testid={`banner-item-${banner.id}`}
-              >
-                <img
-                  src={banner.imageUrl}
-                  alt={banner.caption}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h3 className="text-lg font-bold text-white">{banner.caption}</h3>
-                </div>
+          {banners.map((banner) => (
+            <div
+              key={banner.id}
+              onClick={() => handleBannerClick(banner.redirectLink)}
+              className="flex-shrink-0 w-full aspect-[2/1] rounded-xl overflow-hidden cursor-pointer relative"
+              data-testid={`banner-item-${banner.id}`}
+            >
+              <img
+                src={banner.imageUrl}
+                alt={banner.caption}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <h3 className="text-lg font-bold text-white">{banner.caption}</h3>
               </div>
-            ))
-          ) : (
-            defaultBanners.map((banner) => (
-              <div
-                key={banner.id}
-                className={`flex-shrink-0 w-full aspect-[2/1] bg-gradient-to-r ${banner.gradient} rounded-xl flex flex-col items-center justify-center p-6`}
-              >
-                <h3 className="text-xl font-bold text-white mb-1">{banner.caption}</h3>
-              </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -120,7 +91,7 @@ export function BannerSlider() {
       </button>
 
       <div className="flex justify-center gap-1.5 mt-3">
-        {Array.from({ length: totalSlides }).map((_, index) => (
+        {banners.map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrentIndex(index)}

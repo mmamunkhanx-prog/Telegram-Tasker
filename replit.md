@@ -150,8 +150,8 @@ Preferred communication style: Simple, everyday language.
 - Added Dynamic Banner Management System
 - Banners table with imageUrl, caption, redirectLink, isActive fields
 - Admin panel now has Banners tab for CRUD operations (add/delete)
-- BannerSlider component fetches active banners from API
-- Falls back to default gradient banners if no admin banners exist
+- BannerSlider component fetches active banners from API (no default fallbacks)
+- Slider is hidden when no admin banners exist
 - Banners auto-slide every 4 seconds and open redirect links on click
 - Public endpoint GET /api/banners for active banners
 
