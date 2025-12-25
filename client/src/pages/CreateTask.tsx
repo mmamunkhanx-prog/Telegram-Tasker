@@ -10,11 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, Loader2, AlertCircle } from "lucide-react";
+import { PlusCircle, Loader2, AlertCircle, Users } from "lucide-react";
 import { z } from "zod";
 
-// Form schema without creatorId (added on submit)
-// Use coerce to convert string inputs to numbers
 const createTaskFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   channelUsername: z.string().min(1, "Channel username is required"),
@@ -45,22 +43,16 @@ export default function CreateTask() {
   const estimatedMembers = rewardPerMember > 0 ? Math.floor(totalBudget / rewardPerMember) : 0;
   const hasInsufficientBalance = (user?.balance ?? 0) < totalBudget;
   
-  // Admin bypass for testing (Telegram ID 1991771063)
   const isAdmin = user?.telegramId === "1991771063";
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData & { creatorId: string }) => {
-      console.log("=== MUTATION FN ===");
-      console.log("Full payload with creatorId:", data);
-      
       if (!data.creatorId) {
         throw new Error("User not authenticated. Please refresh the page.");
       }
       
       const response = await apiRequest("POST", "/api/tasks", data);
       const result = await response.json();
-      
-      console.log("API response:", response.status, result);
       
       if (!response.ok) {
         throw new Error(result.error || "Failed to create task");
@@ -69,7 +61,6 @@ export default function CreateTask() {
       return result;
     },
     onSuccess: (data) => {
-      console.log("Task created successfully:", data);
       hapticFeedback("heavy");
       toast({
         title: t("success", language),
@@ -82,7 +73,6 @@ export default function CreateTask() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     },
     onError: (error: Error) => {
-      console.error("Task creation error:", error);
       toast({
         title: t("error", language),
         description: error.message || "Failed to create task",
@@ -92,16 +82,9 @@ export default function CreateTask() {
   });
 
   const onSubmit = (data: FormData) => {
-    console.log("=== CREATE TASK SUBMIT ===");
-    console.log("Form data:", data);
-    console.log("Current user object:", user);
-    console.log("User ID:", user?.id);
-    
     hapticFeedback("light");
     
-    // Check if user is loaded
     if (!user || !user.id) {
-      console.error("User not loaded yet!");
       toast({
         title: language === "bn" ? "ত্রুটি" : "Error",
         description: language === "bn" 
@@ -113,7 +96,6 @@ export default function CreateTask() {
     }
     
     if (hasInsufficientBalance && !isAdmin) {
-      console.log("Blocked: insufficient balance");
       toast({
         title: language === "bn" ? "ব্যালেন্স অপর্যাপ্ত" : "Insufficient balance",
         description: language === "bn" 
@@ -124,44 +106,49 @@ export default function CreateTask() {
       return;
     }
     
-    // Include creatorId directly in the mutation call
-    console.log("Calling API with creatorId:", user.id);
     createMutation.mutate({
       ...data,
       creatorId: user.id,
     });
   };
   
-  // Show loading state while user is loading
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="w-6 h-6 animate-spin" />
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <PlusCircle className="w-5 h-5 text-primary" />
-        <h2 className="font-semibold text-lg">{t("createTask", language)}</h2>
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+          <PlusCircle className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="font-bold text-lg text-foreground">{t("createTask", language)}</h2>
+          <p className="text-sm text-muted-foreground">
+            {language === "bn" ? "আপনার চ্যানেল প্রমোট করুন" : "Promote your channel"}
+          </p>
+        </div>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-5">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("taskTitle", language)}</FormLabel>
+                    <FormLabel className="text-foreground">{t("taskTitle", language)}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         placeholder="Join our Telegram channel"
+                        className="bg-muted/50 border-border"
                         data-testid="input-task-title"
                       />
                     </FormControl>
@@ -175,11 +162,12 @@ export default function CreateTask() {
                 name="channelUsername"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("channelUsername", language)}</FormLabel>
+                    <FormLabel className="text-foreground">{t("channelUsername", language)}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         placeholder="mychannel"
+                        className="bg-muted/50 border-border"
                         data-testid="input-channel-username"
                       />
                     </FormControl>
@@ -193,11 +181,12 @@ export default function CreateTask() {
                 name="channelLink"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("channelLink", language)}</FormLabel>
+                    <FormLabel className="text-foreground">{t("channelLink", language)}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         placeholder="https://t.me/mychannel"
+                        className="bg-muted/50 border-border"
                         data-testid="input-channel-link"
                       />
                     </FormControl>
@@ -212,7 +201,7 @@ export default function CreateTask() {
                   name="rewardPerMember"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("rewardPerMember", language)}</FormLabel>
+                      <FormLabel className="text-foreground">{t("rewardPerMember", language)}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -224,6 +213,7 @@ export default function CreateTask() {
                             const val = parseFloat(e.target.value);
                             field.onChange(isNaN(val) ? 0.5 : val);
                           }}
+                          className="bg-muted/50 border-border"
                           data-testid="input-reward"
                         />
                       </FormControl>
@@ -238,7 +228,7 @@ export default function CreateTask() {
                   name="totalBudget"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("totalBudget", language)}</FormLabel>
+                      <FormLabel className="text-foreground">{t("totalBudget", language)}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -249,6 +239,7 @@ export default function CreateTask() {
                             const val = parseFloat(e.target.value);
                             field.onChange(isNaN(val) ? 1 : val);
                           }}
+                          className="bg-muted/50 border-border"
                           data-testid="input-budget"
                         />
                       </FormControl>
@@ -258,31 +249,34 @@ export default function CreateTask() {
                 />
               </div>
 
-              <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{t("estimatedMembers", language)}</span>
-                  <span className="font-semibold">{estimatedMembers}</span>
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm">{t("estimatedMembers", language)}</span>
+                  </div>
+                  <span className="text-xl font-bold text-primary">{estimatedMembers}</span>
                 </div>
               </div>
 
               {hasInsufficientBalance && (
-                <div className="flex flex-col gap-1 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                <div className="flex flex-col gap-2 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="font-medium">{t("insufficientBalance", language)}</span>
+                    <span className="font-semibold">{t("insufficientBalance", language)}</span>
                   </div>
-                  <div className="text-xs ml-6">
+                  <p className="text-xs ml-6">
                     {language === "bn" 
                       ? `আপনার ব্যালেন্স: ${user?.balance?.toFixed(2) || 0} BDT। প্রয়োজন: ${totalBudget} BDT। প্রথমে ডিপোজিট করুন।`
                       : `Your balance: ${user?.balance?.toFixed(2) || 0} BDT. Required: ${totalBudget} BDT. Please deposit first.`
                     }
-                  </div>
+                  </p>
                 </div>
               )}
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full shadow-md"
                 disabled={createMutation.isPending || !user}
                 data-testid="button-create-task"
               >

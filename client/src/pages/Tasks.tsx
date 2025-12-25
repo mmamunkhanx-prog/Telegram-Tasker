@@ -46,7 +46,7 @@ export default function Tasks() {
     if (taskList.length === 0) {
       return (
         <div className="text-center py-12">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-muted/50 flex items-center justify-center">
             <ListTodo className="w-8 h-8 text-muted-foreground" />
           </div>
           <p className="text-muted-foreground">{emptyMessage}</p>
@@ -70,44 +70,59 @@ export default function Tasks() {
   const renderSkeleton = () => (
     <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="p-4 rounded-xl bg-card border border-card-border space-y-3">
+        <div key={i} className="p-4 rounded-xl bg-card border border-border space-y-3">
           <div className="flex items-start gap-3">
-            <Skeleton className="w-10 h-10 rounded-lg" />
+            <Skeleton className="w-10 h-10 rounded-xl" />
             <div className="flex-1">
               <Skeleton className="h-5 w-32 mb-1" />
               <Skeleton className="h-4 w-24" />
             </div>
             <Skeleton className="h-6 w-16 rounded-full" />
           </div>
-          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full rounded-lg" />
         </div>
       ))}
     </div>
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <ListTodo className="w-5 h-5 text-primary" />
-        <h2 className="font-semibold text-lg">{t("availableTasks", language)}</h2>
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+          <ListTodo className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="font-bold text-lg text-foreground">{t("availableTasks", language)}</h2>
+          <p className="text-sm text-muted-foreground">
+            {language === "bn" ? "টাস্ক সম্পূর্ণ করে আয় করুন" : "Complete tasks to earn"}
+          </p>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ongoing" | "completed")}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="ongoing" className="flex items-center gap-2" data-testid="tab-ongoing">
+        <TabsList className="grid w-full grid-cols-2 bg-card border border-border p-1 rounded-xl">
+          <TabsTrigger 
+            value="ongoing" 
+            className="flex items-center gap-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+            data-testid="tab-ongoing"
+          >
             <Clock className="w-4 h-4" />
             {t("ongoing", language)}
             {!isLoading && ongoingTasks.length > 0 && (
-              <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+              <span className="ml-1 text-xs bg-white/20 px-1.5 py-0.5 rounded-full">
                 {ongoingTasks.length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center gap-2" data-testid="tab-completed">
+          <TabsTrigger 
+            value="completed" 
+            className="flex items-center gap-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" 
+            data-testid="tab-completed"
+          >
             <CheckCircle2 className="w-4 h-4" />
             {t("completedTasks", language)}
             {!isLoading && completedTasks.length > 0 && (
-              <span className="ml-1 text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full">
+              <span className="ml-1 text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full">
                 {completedTasks.length}
               </span>
             )}
