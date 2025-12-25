@@ -583,8 +583,8 @@ export default function Admin() {
                         className="w-20 h-12 object-cover rounded-lg bg-muted"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{banner.caption}</p>
-                        <p className="text-xs text-muted-foreground truncate">{banner.redirectLink}</p>
+                        <p className="font-medium text-sm break-words">{banner.caption}</p>
+                        <p className="text-xs text-muted-foreground break-all">{banner.redirectLink}</p>
                       </div>
                       <Button
                         size="icon"

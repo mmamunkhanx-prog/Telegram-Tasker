@@ -81,11 +81,11 @@ export function TaskCard({ task, completion }: TaskCardProps) {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center shadow-sm">
             <SiTelegram className="w-6 h-6 text-primary" />
           </div>
-          <div className="min-w-0">
-            <h4 className="font-semibold text-foreground truncate">
+          <div className="min-w-0 flex-1">
+            <h4 className="font-semibold text-foreground break-words">
               {language === "bn" && task.titleBn ? task.titleBn : task.title}
             </h4>
-            <p className="text-sm text-muted-foreground">@{task.channelUsername}</p>
+            <p className="text-sm text-muted-foreground break-all">@{task.channelUsername}</p>
           </div>
         </div>
         
