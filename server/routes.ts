@@ -54,9 +54,13 @@ export async function registerRoutes(
         }
       }
 
+      // Get the configurable daily reward amount from settings
+      const settings = await storage.getAppSettings();
+      const rewardAmount = settings.dailyCheckinReward;
+
       // Update balance and last claimed time
       await storage.updateUser(userId, {
-        balance: user.balance + 1,
+        balance: user.balance + rewardAmount,
         dailyCheckinLastClaimed: now,
       });
 
@@ -64,12 +68,12 @@ export async function registerRoutes(
       await storage.createTransaction({
         userId,
         type: "daily_bonus",
-        amount: 1,
+        amount: rewardAmount,
         status: "approved",
         note: "Daily check-in reward",
       });
 
-      res.json({ success: true, newBalance: user.balance + 1 });
+      res.json({ success: true, newBalance: user.balance + rewardAmount });
     } catch (error) {
       console.error("Error claiming daily reward:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -507,6 +511,18 @@ export async function registerRoutes(
   app.post("/api/transactions/withdraw", async (req, res) => {
     try {
       const { userId, ...withdrawData } = req.body;
+      
+      // Get app settings for minimum withdraw amount
+      const settings = await storage.getAppSettings();
+      const minWithdrawAmount = settings.minWithdrawAmount;
+      
+      // Validate with dynamic minimum
+      if (!withdrawData.amount || withdrawData.amount < minWithdrawAmount) {
+        return res.status(400).json({ 
+          error: `Minimum withdraw amount is ${minWithdrawAmount} BDT` 
+        });
+      }
+      
       const validated = withdrawSchema.parse(withdrawData);
 
       // Check if user has enough balance
@@ -653,6 +669,47 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting banner:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Public: Get app settings (for frontend validation)
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Admin: Get app settings
+  app.get("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching admin settings:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Admin: Update app settings
+  app.put("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const { referralBonusAmount, minWithdrawAmount, minDepositAmount, dailyCheckinReward } = req.body;
+      
+      const updates: any = {};
+      if (referralBonusAmount !== undefined) updates.referralBonusAmount = Number(referralBonusAmount);
+      if (minWithdrawAmount !== undefined) updates.minWithdrawAmount = Number(minWithdrawAmount);
+      if (minDepositAmount !== undefined) updates.minDepositAmount = Number(minDepositAmount);
+      if (dailyCheckinReward !== undefined) updates.dailyCheckinReward = Number(dailyCheckinReward);
+      
+      const settings = await storage.updateAppSettings(updates);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -824,26 +881,30 @@ export async function registerRoutes(
                 const referrer = await storage.getUser(user.referredBy);
                 
                 if (referrer) {
-                  // Credit 2 BDT to referrer
+                  // Get the configurable referral bonus amount from settings
+                  const settings = await storage.getAppSettings();
+                  const bonusAmount = settings.referralBonusAmount;
+                  
+                  // Credit bonus to referrer
                   await storage.updateUser(referrer.id, {
-                    balance: referrer.balance + 2,
+                    balance: referrer.balance + bonusAmount,
                   });
                   
                   // Record the transaction
                   await storage.createTransaction({
                     userId: referrer.id,
                     type: "referral_bonus",
-                    amount: 2,
+                    amount: bonusAmount,
                     status: "approved",
                     note: `Referral bonus from ${user.firstName} (${user.telegramId})`,
                   });
                   
-                  console.log(`✅ Credited 2 BDT referral bonus to ${referrer.id} from ${user.id}`);
+                  console.log(`✅ Credited ${bonusAmount} BDT referral bonus to ${referrer.id} from ${user.id}`);
                   
                   // Send notification to referrer
                   await sendTelegramMessage(
                     referrer.telegramId,
-                    `🎉 You earned 2 BDT!\n\n${user.firstName} joined using your referral link and verified their membership.\n\nYour new balance: ${referrer.balance + 2} BDT`
+                    `🎉 You earned ${bonusAmount} BDT!\n\n${user.firstName} joined using your referral link and verified their membership.\n\nYour new balance: ${referrer.balance + bonusAmount} BDT`
                   );
                 }
                 
@@ -853,7 +914,7 @@ export async function registerRoutes(
                   referralBonusCredited: true,
                 });
                 
-                responseText = "✅ Verified! Your friend earned 2 BDT bonus! Open the Mini App to start earning.";
+                responseText = "✅ Verified! Your friend earned a referral bonus! Open the Mini App to start earning.";
               } else {
                 // No referral pending, just mark as verified
                 await storage.updateUser(user.id, {

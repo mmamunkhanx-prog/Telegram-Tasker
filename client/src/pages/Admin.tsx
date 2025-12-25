@@ -22,13 +22,15 @@ import {
   Trash2,
   Plus,
   Loader2,
+  Settings,
+  Save,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import type { AdminStats, Transaction, Banner } from "@shared/schema";
-import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import type { AdminStats, Transaction, Banner, AppSettings } from "@shared/schema";
+import { useState, useEffect } from "react";
 import { Redirect } from "wouter";
 
-// Admin API request helper that includes x-user-id header
 async function adminApiRequest(
   method: string,
   url: string,
@@ -55,7 +57,6 @@ export default function Admin() {
   const { user, language } = useApp();
   const { toast } = useToast();
 
-  // Custom query function that includes x-user-id header
   const adminQueryFn = async (url: string) => {
     if (!user?.id) throw new Error("Not authenticated");
     const res = await fetch(url, {
@@ -90,10 +91,29 @@ export default function Admin() {
     enabled: !!user?.isAdmin,
   });
 
-  // Banner form state
+  const { data: appSettings, isLoading: settingsLoading } = useQuery<AppSettings>({
+    queryKey: ["/api/admin/settings"],
+    queryFn: () => adminQueryFn("/api/admin/settings"),
+    enabled: !!user?.isAdmin,
+  });
+
   const [bannerImageUrl, setBannerImageUrl] = useState("");
   const [bannerCaption, setBannerCaption] = useState("");
   const [bannerRedirectLink, setBannerRedirectLink] = useState("");
+
+  const [referralBonus, setReferralBonus] = useState<string>("5");
+  const [minWithdraw, setMinWithdraw] = useState<string>("50");
+  const [minDeposit, setMinDeposit] = useState<string>("10");
+  const [dailyReward, setDailyReward] = useState<string>("1");
+
+  useEffect(() => {
+    if (appSettings) {
+      setReferralBonus(String(appSettings.referralBonusAmount));
+      setMinWithdraw(String(appSettings.minWithdrawAmount));
+      setMinDeposit(String(appSettings.minDepositAmount));
+      setDailyReward(String(appSettings.dailyCheckinReward));
+    }
+  }, [appSettings]);
 
   const createBannerMutation = useMutation({
     mutationFn: async () => {
@@ -135,6 +155,28 @@ export default function Admin() {
       toast({ title: t("success", language), description: "Banner deleted" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/banners"] });
       queryClient.invalidateQueries({ queryKey: ["/api/banners"] });
+    },
+  });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("Not authenticated");
+      const response = await adminApiRequest("PUT", "/api/admin/settings", user.id, {
+        referralBonusAmount: parseFloat(referralBonus),
+        minWithdrawAmount: parseFloat(minWithdraw),
+        minDepositAmount: parseFloat(minDeposit),
+        dailyCheckinReward: parseFloat(dailyReward),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      hapticFeedback("heavy");
+      toast({ title: t("success", language), description: "Settings updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
+    onError: (error) => {
+      toast({ title: t("error", language), description: error.message, variant: "destructive" });
     },
   });
 
@@ -192,13 +234,18 @@ export default function Admin() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex items-center gap-2">
-        <Shield className="w-5 h-5 text-primary" />
-        <h1 className="font-semibold text-lg">{t("adminPanel", language)}</h1>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+          <Shield className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="font-bold text-lg text-foreground">{t("adminPanel", language)}</h1>
+          <p className="text-sm text-muted-foreground">Manage your platform</p>
+        </div>
       </div>
 
       <div>
-        <h2 className="font-medium mb-3">{t("statistics", language)}</h2>
+        <h2 className="font-semibold mb-3">{t("statistics", language)}</h2>
         <div className="grid grid-cols-2 gap-3">
           {statsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
@@ -223,21 +270,137 @@ export default function Admin() {
         </div>
       </div>
 
-      <Tabs defaultValue="deposits">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="deposits" data-testid="admin-tab-deposits">
-            <ArrowDownCircle className="w-4 h-4 mr-1" />
-            Deposits
+      <Tabs defaultValue="settings">
+        <TabsList className="grid w-full grid-cols-4 bg-card border border-border p-1 rounded-xl">
+          <TabsTrigger value="settings" className="gap-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="admin-tab-settings">
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
           </TabsTrigger>
-          <TabsTrigger value="withdrawals" data-testid="admin-tab-withdrawals">
-            <ArrowUpCircle className="w-4 h-4 mr-1" />
-            Withdrawals
+          <TabsTrigger value="deposits" className="gap-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="admin-tab-deposits">
+            <ArrowDownCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Deposits</span>
           </TabsTrigger>
-          <TabsTrigger value="banners" data-testid="admin-tab-banners">
-            <Image className="w-4 h-4 mr-1" />
-            Banners
+          <TabsTrigger value="withdrawals" className="gap-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="admin-tab-withdrawals">
+            <ArrowUpCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Withdrawals</span>
+          </TabsTrigger>
+          <TabsTrigger value="banners" className="gap-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="admin-tab-banners">
+            <Image className="w-4 h-4" />
+            <span className="hidden sm:inline">Banners</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="settings" className="mt-4">
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Settings className="w-5 h-5 text-primary" />
+                Global Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {settingsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="referralBonus" className="text-foreground font-medium">
+                      Referral Bonus Amount (BDT)
+                    </Label>
+                    <Input
+                      id="referralBonus"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={referralBonus}
+                      onChange={(e) => setReferralBonus(e.target.value)}
+                      className="bg-muted/50"
+                      data-testid="input-referral-bonus"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Amount given to referrer when a new user joins via their link
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="minWithdraw" className="text-foreground font-medium">
+                      Minimum Withdraw Limit (BDT)
+                    </Label>
+                    <Input
+                      id="minWithdraw"
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={minWithdraw}
+                      onChange={(e) => setMinWithdraw(e.target.value)}
+                      className="bg-muted/50"
+                      data-testid="input-min-withdraw"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Users cannot withdraw less than this amount
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="minDeposit" className="text-foreground font-medium">
+                      Minimum Deposit Amount (BDT)
+                    </Label>
+                    <Input
+                      id="minDeposit"
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={minDeposit}
+                      onChange={(e) => setMinDeposit(e.target.value)}
+                      className="bg-muted/50"
+                      data-testid="input-min-deposit"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Minimum amount required for deposits
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dailyReward" className="text-foreground font-medium">
+                      Daily Check-in Reward (BDT)
+                    </Label>
+                    <Input
+                      id="dailyReward"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={dailyReward}
+                      onChange={(e) => setDailyReward(e.target.value)}
+                      className="bg-muted/50"
+                      data-testid="input-daily-reward"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Amount given for daily check-in
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => updateSettingsMutation.mutate()}
+                    disabled={updateSettingsMutation.isPending}
+                    className="w-full shadow-md"
+                    data-testid="button-save-settings"
+                  >
+                    {updateSettingsMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Changes
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="deposits" className="mt-4">
           {depositsLoading ? (
@@ -365,18 +528,21 @@ export default function Admin() {
                 placeholder="Image URL (e.g., https://example.com/banner.jpg)"
                 value={bannerImageUrl}
                 onChange={(e) => setBannerImageUrl(e.target.value)}
+                className="bg-muted/50"
                 data-testid="input-banner-image-url"
               />
               <Input
                 placeholder="Caption / Title"
                 value={bannerCaption}
                 onChange={(e) => setBannerCaption(e.target.value)}
+                className="bg-muted/50"
                 data-testid="input-banner-caption"
               />
               <Input
                 placeholder="Redirect Link (e.g., https://t.me/channel)"
                 value={bannerRedirectLink}
                 onChange={(e) => setBannerRedirectLink(e.target.value)}
+                className="bg-muted/50"
                 data-testid="input-banner-redirect-link"
               />
               <Button
@@ -414,7 +580,7 @@ export default function Admin() {
                       <img
                         src={banner.imageUrl}
                         alt={banner.caption}
-                        className="w-20 h-12 object-cover rounded-md bg-muted"
+                        className="w-20 h-12 object-cover rounded-lg bg-muted"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{banner.caption}</p>

@@ -140,6 +140,24 @@ export const insertBannerSchema = createInsertSchema(banners).omit({
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
 export type Banner = typeof banners.$inferSelect;
 
+// App settings table (singleton - only one row)
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id", { length: 36 }).primaryKey().default("default"),
+  referralBonusAmount: real("referral_bonus_amount").notNull().default(5),
+  minWithdrawAmount: real("min_withdraw_amount").notNull().default(50),
+  minDepositAmount: real("min_deposit_amount").notNull().default(10),
+  dailyCheckinReward: real("daily_checkin_reward").notNull().default(1),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
+export type AppSettings = typeof appSettings.$inferSelect;
+
 // Admin stats type
 export interface AdminStats {
   totalUsers: number;

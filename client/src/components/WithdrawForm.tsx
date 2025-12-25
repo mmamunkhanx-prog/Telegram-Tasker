@@ -1,9 +1,7 @@
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
-import { withdrawSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { hapticFeedback } from "@/lib/telegram";
 import { useToast } from "@/hooks/use-toast";
@@ -13,9 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, AlertCircle } from "lucide-react";
-import type { z } from "zod";
-
-type FormData = z.infer<typeof withdrawSchema>;
+import { z } from "zod";
+import type { AppSettings } from "@shared/schema";
 
 const paymentMethods = [
   { id: "bkash", name: "bKash" },
@@ -27,10 +24,23 @@ export function WithdrawForm() {
   const { language, user } = useApp();
   const { toast } = useToast();
 
+  const { data: settings } = useQuery<AppSettings>({
+    queryKey: ["/api/settings"],
+  });
+
+  const minWithdraw = settings?.minWithdrawAmount ?? 50;
+
+  const withdrawFormSchema = z.object({
+    amount: z.number().min(minWithdraw, `Minimum withdraw is ${minWithdraw} BDT`),
+    method: z.enum(["bkash", "nagad", "usdt"]),
+    walletAddress: z.string().min(1, "Wallet address is required"),
+  });
+
+  type FormData = z.infer<typeof withdrawFormSchema>;
+
   const form = useForm<FormData>({
-    resolver: zodResolver(withdrawSchema),
     defaultValues: {
-      amount: 50,
+      amount: minWithdraw,
       method: "bkash",
       walletAddress: "",
     },
@@ -39,6 +49,7 @@ export function WithdrawForm() {
   const selectedMethod = form.watch("method");
   const amount = form.watch("amount");
   const hasInsufficientBalance = (user?.balance ?? 0) < amount;
+  const isBelowMinimum = amount < minWithdraw;
 
   const withdrawMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -46,6 +57,10 @@ export function WithdrawForm() {
         ...data,
         userId: user?.id,
       });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to submit withdrawal");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -54,27 +69,27 @@ export function WithdrawForm() {
         title: t("success", language),
         description: t("withdrawSubmitted", language),
       });
-      form.reset();
+      form.reset({ amount: minWithdraw, method: "bkash", walletAddress: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: t("error", language),
-        description: "Failed to submit withdrawal request",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: FormData) => {
-    if (hasInsufficientBalance) return;
+    if (hasInsufficientBalance || isBelowMinimum) return;
     hapticFeedback("medium");
     withdrawMutation.mutate(data);
   };
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <CardTitle className="text-base">{t("withdrawFunds", language)}</CardTitle>
       </CardHeader>
       <CardContent>
@@ -101,7 +116,7 @@ export function WithdrawForm() {
                           />
                           <label
                             htmlFor={`withdraw-${method.id}`}
-                            className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-3 cursor-pointer peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-all"
+                            className="flex flex-col items-center justify-center rounded-xl border-2 border-muted bg-card p-3 cursor-pointer peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 transition-all"
                             data-testid={`radio-withdraw-${method.id}`}
                           >
                             <span className="text-sm font-medium">{method.name}</span>
@@ -125,12 +140,17 @@ export function WithdrawForm() {
                     <Input
                       {...field}
                       type="number"
-                      min="50"
-                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                      min={minWithdraw}
+                      className="bg-muted/50"
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       data-testid="input-withdraw-amount"
                     />
                   </FormControl>
-                  <p className="text-xs text-muted-foreground">{t("minWithdraw", language)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {language === "bn" 
+                      ? `সর্বনিম্ন উত্তোলন ${minWithdraw} BDT` 
+                      : `Minimum withdraw: ${minWithdraw} BDT`}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -154,6 +174,7 @@ export function WithdrawForm() {
                           ? "0x..."
                           : "01XXXXXXXXX"
                       }
+                      className="bg-muted/50"
                       data-testid="input-wallet-address"
                     />
                   </FormControl>
@@ -162,8 +183,17 @@ export function WithdrawForm() {
               )}
             />
 
-            {hasInsufficientBalance && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            {isBelowMinimum && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
+                <AlertCircle className="w-4 h-4" />
+                {language === "bn" 
+                  ? `সর্বনিম্ন উত্তোলন ${minWithdraw} BDT` 
+                  : `Minimum withdraw amount is ${minWithdraw} BDT`}
+              </div>
+            )}
+
+            {hasInsufficientBalance && !isBelowMinimum && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
                 <AlertCircle className="w-4 h-4" />
                 {t("insufficientBalance", language)}
               </div>
@@ -171,8 +201,8 @@ export function WithdrawForm() {
 
             <Button
               type="submit"
-              className="w-full"
-              disabled={withdrawMutation.isPending || hasInsufficientBalance}
+              className="w-full shadow-md"
+              disabled={withdrawMutation.isPending || hasInsufficientBalance || isBelowMinimum}
               data-testid="button-submit-withdraw"
             >
               {withdrawMutation.isPending ? (

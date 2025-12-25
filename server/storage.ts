@@ -6,6 +6,7 @@ import {
   taskCompletions,
   transactions,
   banners,
+  appSettings,
   type User,
   type InsertUser,
   type Task,
@@ -16,6 +17,8 @@ import {
   type InsertTransaction,
   type Banner,
   type InsertBanner,
+  type AppSettings,
+  type InsertAppSettings,
   type AdminStats,
 } from "@shared/schema";
 
@@ -63,6 +66,10 @@ export interface IStorage {
   getActiveBanners(): Promise<Banner[]>;
   createBanner(banner: InsertBanner): Promise<Banner>;
   deleteBanner(id: string): Promise<boolean>;
+
+  // App Settings
+  getAppSettings(): Promise<AppSettings>;
+  updateAppSettings(updates: Partial<InsertAppSettings>): Promise<AppSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -236,6 +243,36 @@ export class DatabaseStorage implements IStorage {
   async deleteBanner(id: string): Promise<boolean> {
     const result = await db.delete(banners).where(eq(banners.id, id));
     return true;
+  }
+
+  // App Settings
+  async getAppSettings(): Promise<AppSettings> {
+    const [settings] = await db.select().from(appSettings).where(eq(appSettings.id, "default"));
+    
+    if (!settings) {
+      // Create default settings if not exists
+      const [newSettings] = await db.insert(appSettings).values({
+        id: "default",
+        referralBonusAmount: 5,
+        minWithdrawAmount: 50,
+        minDepositAmount: 10,
+        dailyCheckinReward: 1,
+      }).returning();
+      return newSettings;
+    }
+    
+    return settings;
+  }
+
+  async updateAppSettings(updates: Partial<InsertAppSettings>): Promise<AppSettings> {
+    // Ensure settings exist first
+    await this.getAppSettings();
+    
+    const [updatedSettings] = await db.update(appSettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(appSettings.id, "default"))
+      .returning();
+    return updatedSettings;
   }
 }
 

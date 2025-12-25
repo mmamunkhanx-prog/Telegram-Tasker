@@ -4,15 +4,22 @@ import { t } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Gift, Loader2, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { AppSettings } from "@shared/schema";
 
 export function DailyCheckin() {
   const { language, user, setUser } = useApp();
   const { toast } = useToast();
   const [timeUntilClaim, setTimeUntilClaim] = useState<string>("");
   const [canClaim, setCanClaim] = useState(false);
+
+  const { data: settings } = useQuery<AppSettings>({
+    queryKey: ["/api/settings"],
+  });
+
+  const dailyReward = settings?.dailyCheckinReward ?? 1;
 
   useEffect(() => {
     if (!user?.dailyCheckinLastClaimed) {
@@ -64,11 +71,12 @@ export function DailyCheckin() {
       if (user) {
         setUser({
           ...user,
-          balance: user.balance + 1,
+          balance: data.newBalance || user.balance + dailyReward,
           dailyCheckinLastClaimed: new Date() as any,
         });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
     },
     onError: (error: Error) => {
       toast({
@@ -93,7 +101,7 @@ export function DailyCheckin() {
             <p className="font-semibold text-foreground">{t("dailyCheckin", language)}</p>
             <p className="text-sm text-muted-foreground mt-0.5">
               {canClaim ? (
-                <span className="text-reward font-medium">+1 BDT {t("claimDaily", language)}</span>
+                <span className="text-reward font-medium">+{dailyReward} BDT {t("claimDaily", language)}</span>
               ) : (
                 `${t("nextClaimIn", language)}: ${timeUntilClaim}`
               )}
