@@ -6,9 +6,10 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        xl: "0.75rem", /* 12px */
+        lg: "0.625rem", /* 10px */
+        md: "0.5rem", /* 8px */
+        sm: "0.25rem", /* 4px */
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -80,6 +81,9 @@ export default {
           away: "rgb(245 158 11)",
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
+        },
+        reward: {
+          DEFAULT: "hsl(var(--reward) / <alpha-value>)",
         },
       },
       fontFamily: {

@@ -5,7 +5,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { Calendar, Loader2 } from "lucide-react";
+import { Gift, Loader2, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export function DailyCheckin() {
@@ -14,7 +14,6 @@ export function DailyCheckin() {
   const [timeUntilClaim, setTimeUntilClaim] = useState<string>("");
   const [canClaim, setCanClaim] = useState(false);
 
-  // Check if user can claim
   useEffect(() => {
     if (!user?.dailyCheckinLastClaimed) {
       setCanClaim(true);
@@ -24,14 +23,13 @@ export function DailyCheckin() {
 
     const lastClaimed = new Date(user.dailyCheckinLastClaimed).getTime();
     const now = Date.now();
-    const nextClaimTime = lastClaimed + 24 * 60 * 60 * 1000; // 24 hours
+    const nextClaimTime = lastClaimed + 24 * 60 * 60 * 1000;
 
     if (now >= nextClaimTime) {
       setCanClaim(true);
       setTimeUntilClaim("");
     } else {
       setCanClaim(false);
-      // Calculate countdown
       const interval = setInterval(() => {
         const remaining = nextClaimTime - Date.now();
         if (remaining <= 0) {
@@ -82,28 +80,37 @@ export function DailyCheckin() {
   });
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <Calendar className="w-5 h-5 text-primary" />
+    <Card className="relative overflow-visible border-reward/20 bg-gradient-to-r from-card via-card to-reward/5">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-reward/20 to-reward/5 flex items-center justify-center flex-shrink-0 shadow-md">
+            <Gift className="w-6 h-6 text-reward" />
+            {canClaim && (
+              <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-reward animate-pulse" />
+            )}
           </div>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">{t("dailyCheckin", language)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {canClaim
-                ? t("claimDaily", language)
-                : `${t("nextClaimIn", language)}: ${timeUntilClaim}`}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">{t("dailyCheckin", language)}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {canClaim ? (
+                <span className="text-reward font-medium">+1 BDT {t("claimDaily", language)}</span>
+              ) : (
+                `${t("nextClaimIn", language)}: ${timeUntilClaim}`
+              )}
             </p>
           </div>
           <Button
-            size="sm"
             onClick={() => claimMutation.mutate()}
             disabled={!canClaim || claimMutation.isPending}
             data-testid="button-daily-checkin"
+            className={`w-full max-w-[100px] shadow-md ${
+              canClaim 
+                ? "bg-reward text-black font-semibold" 
+                : ""
+            }`}
           >
             {claimMutation.isPending ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : canClaim ? (
               t("claimReward", language)
             ) : (
