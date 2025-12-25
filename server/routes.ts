@@ -700,17 +700,46 @@ export async function registerRoutes(
     try {
       const { referralBonusAmount, minWithdrawAmount, minDepositAmount, dailyCheckinReward } = req.body;
       
+      // Validate inputs
       const updates: any = {};
-      if (referralBonusAmount !== undefined) updates.referralBonusAmount = Number(referralBonusAmount);
-      if (minWithdrawAmount !== undefined) updates.minWithdrawAmount = Number(minWithdrawAmount);
-      if (minDepositAmount !== undefined) updates.minDepositAmount = Number(minDepositAmount);
-      if (dailyCheckinReward !== undefined) updates.dailyCheckinReward = Number(dailyCheckinReward);
+      if (referralBonusAmount !== undefined) {
+        const val = Number(referralBonusAmount);
+        if (isNaN(val) || val < 0) {
+          return res.status(400).json({ error: "Invalid referral bonus amount" });
+        }
+        updates.referralBonusAmount = val;
+      }
+      if (minWithdrawAmount !== undefined) {
+        const val = Number(minWithdrawAmount);
+        if (isNaN(val) || val < 0) {
+          return res.status(400).json({ error: "Invalid minimum withdraw amount" });
+        }
+        updates.minWithdrawAmount = val;
+      }
+      if (minDepositAmount !== undefined) {
+        const val = Number(minDepositAmount);
+        if (isNaN(val) || val < 0) {
+          return res.status(400).json({ error: "Invalid minimum deposit amount" });
+        }
+        updates.minDepositAmount = val;
+      }
+      if (dailyCheckinReward !== undefined) {
+        const val = Number(dailyCheckinReward);
+        if (isNaN(val) || val < 0) {
+          return res.status(400).json({ error: "Invalid daily check-in reward" });
+        }
+        updates.dailyCheckinReward = val;
+      }
+      
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No valid settings to update" });
+      }
       
       const settings = await storage.updateAppSettings(updates);
       res.json(settings);
-    } catch (error) {
-      console.error("Error updating settings:", error);
-      res.status(500).json({ error: "Internal server error" });
+    } catch (error: any) {
+      console.error("Error updating settings:", error?.message || error);
+      res.status(500).json({ error: error?.message || "Internal server error" });
     }
   });
 

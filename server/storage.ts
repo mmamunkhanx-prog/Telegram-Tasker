@@ -266,12 +266,21 @@ export class DatabaseStorage implements IStorage {
 
   async updateAppSettings(updates: Partial<InsertAppSettings>): Promise<AppSettings> {
     // Ensure settings exist first
-    await this.getAppSettings();
+    const existing = await this.getAppSettings();
+    
+    if (!existing) {
+      throw new Error("Failed to initialize app settings");
+    }
     
     const [updatedSettings] = await db.update(appSettings)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(appSettings.id, "default"))
       .returning();
+    
+    if (!updatedSettings) {
+      throw new Error("Failed to update app settings");
+    }
+    
     return updatedSettings;
   }
 }
