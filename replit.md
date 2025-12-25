@@ -43,6 +43,8 @@ Preferred communication style: Simple, everyday language.
   - Fields: id, userId, type, amount, status, method, walletAddress, transactionId, note, createdAt
 - **Banners**: Dynamic homepage banner management
   - Fields: id, imageUrl, caption, redirectLink, isActive, createdAt
+- **AppSettings**: Global platform configuration (singleton table)
+  - Fields: id (default="default"), referralBonusAmount, minWithdrawAmount, minDepositAmount, dailyCheckinReward, updatedAt
 
 ### Authentication
 - **Method**: Telegram WebApp auto-login (no passwords)
@@ -64,22 +66,28 @@ Preferred communication style: Simple, everyday language.
 
 ### Financial System
 - Deposit methods: bKash, Nagad, USDT (BEP-20)
-- Minimum deposit: 10 BDT
-- Minimum withdrawal: 50 BDT
+- Minimum deposit: Configurable via admin settings (default 10 BDT)
+- Minimum withdrawal: Configurable via admin settings (default 50 BDT)
 - Manual admin approval for all transactions
 - Withdrawal rejection refunds balance immediately
 
 ### Referral System
-- 5 BDT bonus for referrer when new user joins
+- Configurable referral bonus (default 5 BDT) for referrer when new user joins
 - Each user has unique referral code
 - Referral links work via Telegram start parameter
+
+### Daily Check-in
+- Configurable daily reward (default 1 BDT)
+- Users can claim once every 24 hours with countdown timer
 
 ### Admin Panel
 - Access at /admin-master route (hidden from nav)
 - **Only Telegram ID 1991771063 has admin access** (configurable via ADMIN_TELEGRAM_ID env var)
 - Server-side middleware validates admin access on all admin API endpoints
-- View pending deposits/withdrawals
-- Approve/reject transactions with proper balance handling
+- **Settings Tab**: Configure referral bonus, min withdraw, min deposit, daily reward
+- **Deposits Tab**: View and approve/reject pending deposits
+- **Withdrawals Tab**: View and approve/reject pending withdrawals
+- **Banners Tab**: Add/delete homepage banners
 - Dashboard shows platform statistics
 
 ## External Dependencies
@@ -128,6 +136,11 @@ Preferred communication style: Simple, everyday language.
 - GET /api/admin/banners - Get all banners (admin only)
 - POST /api/admin/banners - Create new banner (admin only)
 - DELETE /api/admin/banners/:id - Delete banner (admin only)
+- GET /api/admin/settings - Get app settings (admin only)
+- PUT /api/admin/settings - Update app settings (admin only)
+
+### Settings
+- GET /api/settings - Get public app settings (min withdraw, referral bonus, etc.)
 
 ### Banners
 - GET /api/banners - Get active banners (public)
@@ -145,6 +158,17 @@ Preferred communication style: Simple, everyday language.
   - Handles insufficient balance cases gracefully
 
 ## Recent Changes
+
+### December 25, 2025
+- Added Global Settings Management System with Admin Settings tab
+- Created appSettings table (singleton pattern with id="default")
+- Settings include: referralBonusAmount, minWithdrawAmount, minDepositAmount, dailyCheckinReward
+- Admin panel Settings tab is first tab for easy access
+- WithdrawForm now fetches and validates against dynamic minimum amount
+- Referral bonus uses configurable amount from settings (default 5 BDT)
+- Daily check-in uses configurable reward amount from settings (default 1 BDT)
+- Added public GET /api/settings and admin GET/PUT /api/admin/settings endpoints
+- All monetary configuration values now dynamically applied without app restart
 
 ### December 24, 2025
 - Added Dynamic Banner Management System

@@ -1,7 +1,9 @@
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
+import { withdrawSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { hapticFeedback } from "@/lib/telegram";
 import { useToast } from "@/hooks/use-toast";
@@ -10,9 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, AlertCircle } from "lucide-react";
 import { z } from "zod";
 import type { AppSettings } from "@shared/schema";
+import { useEffect } from "react";
+
+type FormData = z.infer<typeof withdrawSchema>;
 
 const paymentMethods = [
   { id: "bkash", name: "bKash" },
@@ -24,27 +30,29 @@ export function WithdrawForm() {
   const { language, user } = useApp();
   const { toast } = useToast();
 
-  const { data: settings } = useQuery<AppSettings>({
+  const { data: settings, isLoading: settingsLoading, isError: settingsError } = useQuery<AppSettings>({
     queryKey: ["/api/settings"],
   });
 
   const minWithdraw = settings?.minWithdrawAmount ?? 50;
 
-  const withdrawFormSchema = z.object({
-    amount: z.number().min(minWithdraw, `Minimum withdraw is ${minWithdraw} BDT`),
-    method: z.enum(["bkash", "nagad", "usdt"]),
-    walletAddress: z.string().min(1, "Wallet address is required"),
-  });
-
-  type FormData = z.infer<typeof withdrawFormSchema>;
-
   const form = useForm<FormData>({
+    resolver: zodResolver(withdrawSchema),
     defaultValues: {
-      amount: minWithdraw,
+      amount: 50,
       method: "bkash",
       walletAddress: "",
     },
   });
+
+  useEffect(() => {
+    if (settings) {
+      const currentAmount = form.getValues("amount");
+      if (currentAmount < settings.minWithdrawAmount) {
+        form.setValue("amount", settings.minWithdrawAmount);
+      }
+    }
+  }, [settings, form]);
 
   const selectedMethod = form.watch("method");
   const amount = form.watch("amount");
@@ -82,10 +90,42 @@ export function WithdrawForm() {
   });
 
   const onSubmit = (data: FormData) => {
-    if (hasInsufficientBalance || isBelowMinimum) return;
+    if (hasInsufficientBalance || isBelowMinimum || settingsLoading) return;
     hapticFeedback("medium");
     withdrawMutation.mutate(data);
   };
+
+  if (settingsLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">{t("withdrawFunds", language)}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (settingsError) {
+    return (
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base">{t("withdrawFunds", language)}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
+            <AlertCircle className="w-4 h-4" />
+            {language === "bn" ? "সেটিংস লোড করা যায়নি" : "Failed to load settings"}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

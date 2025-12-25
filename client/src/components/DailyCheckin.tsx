@@ -4,6 +4,7 @@ import { t } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Gift, Loader2, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -15,7 +16,7 @@ export function DailyCheckin() {
   const [timeUntilClaim, setTimeUntilClaim] = useState<string>("");
   const [canClaim, setCanClaim] = useState(false);
 
-  const { data: settings } = useQuery<AppSettings>({
+  const { data: settings, isLoading: settingsLoading } = useQuery<AppSettings>({
     queryKey: ["/api/settings"],
   });
 
@@ -76,7 +77,6 @@ export function DailyCheckin() {
         });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
     },
     onError: (error: Error) => {
       toast({
@@ -86,6 +86,23 @@ export function DailyCheckin() {
       });
     },
   });
+
+  if (settingsLoading) {
+    return (
+      <Card className="relative overflow-visible border-reward/20 bg-gradient-to-r from-card via-card to-reward/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-12 h-12 rounded-xl" />
+            <div className="flex-1">
+              <Skeleton className="h-5 w-24 mb-2" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <Skeleton className="h-9 w-24 rounded-md" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="relative overflow-visible border-reward/20 bg-gradient-to-r from-card via-card to-reward/5">
@@ -109,7 +126,7 @@ export function DailyCheckin() {
           </div>
           <Button
             onClick={() => claimMutation.mutate()}
-            disabled={!canClaim || claimMutation.isPending}
+            disabled={!canClaim || claimMutation.isPending || settingsLoading}
             data-testid="button-daily-checkin"
             className={`w-full max-w-[100px] shadow-md ${
               canClaim 
