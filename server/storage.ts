@@ -243,6 +243,9 @@ export class DatabaseStorage implements IStorage {
   async deleteBanner(id: string): Promise<boolean> {
     const result = await db.delete(banners).where(eq(banners.id, id));
     return true;
+  } async deleteTask(id: string): Promise<boolean> {
+    await db.delete(tasks).where(eq(tasks.id, id));
+    return true;
   }
 
   // App Settings
