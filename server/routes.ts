@@ -614,7 +614,31 @@ export async function registerRoutes(
       res.status(500).json({ error: "Internal server error" });
     }
   });
+// --- Admin Task Control ---
+  // টাস্ক ডিলিট করার এন্ডপয়েন্ট
+  app.delete("/api/tasks/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteTask(id); 
+      res.json({ success: true, message: "Task deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
 
+  // টাস্ক এডিট করার এন্ডপয়েন্ট
+  app.patch("/api/tasks/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const updatedTask = await storage.updateTask(id, updateData);
+      res.json({ success: true, task: updatedTask });
+    } catch (error) {
+      console.error("Error updating task:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
   // ==================== BANNER MANAGEMENT ====================
   // Get all active banners (public)
   app.get("/api/banners", async (req, res) => {
