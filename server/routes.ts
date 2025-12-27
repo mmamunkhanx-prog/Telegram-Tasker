@@ -554,7 +554,27 @@ export async function registerRoutes(
       res.status(500).json({ error: "Internal server error" });
     }
   });
+   // টাস্ক ডিলিট করার রাউট
+  app.delete("/api/tasks/:id", requireAdmin, async (req, res) => {
+    try {
+      const taskId = req.params.id;
+      await storage.deleteTask(taskId);
+      res.status(200).json({ success: true, message: "Task deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete task" });
+    }
+  });
 
+  // টাস্ক এডিট/আপডেট করার রাউট
+  app.patch("/api/tasks/:id", requireAdmin, async (req, res) => {
+    try {
+      const taskId = req.params.id;
+      const updatedTask = await storage.updateTask(taskId, req.body);
+      res.json(updatedTask);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update task" });
+    }
+  });
   // Admin routes - all require admin middleware
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
