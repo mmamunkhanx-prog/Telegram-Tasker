@@ -287,8 +287,10 @@ export default function Admin() {
           <TabsTrigger value="banners" className="gap-1 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="admin-tab-banners">
             <Image className="w-4 h-4" />
             <span className="hidden sm:inline">Banners</span>
-          </TabsTrigger>
-        </TabsList>
+          </TabsTrigger><TabsTrigger value="tasks" className="gap-1 rounded-lg">
+       <ListTodo className="w-4 h-4" />
+        <span>Tasks</span>
+          </TabsTrigger></TabsList> 
 
         <TabsContent value="settings" className="mt-4">
           <Card>
@@ -517,7 +519,19 @@ export default function Admin() {
             </div>
           )}
         </TabsContent>
-
+         <TabsContent value="tasks" className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <ListTodo className="w-5 h-5 text-primary" />
+              Manage Tasks
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TaskList userId={user?.id} />
+          </CardContent>
+        </Card>
+      </TabsContent>
         <TabsContent value="banners" className="mt-4">
           <Card className="mb-4">
             <CardHeader className="pb-3">
@@ -606,3 +620,53 @@ export default function Admin() {
     </div>
   );
 }
+function TaskList({ userId }: { userId: string | undefined }) {
+  const { data: tasks, isLoading } = useQuery({
+    queryKey: ["/api/tasks"],
+    queryFn: async () => {
+      const res = await fetch("/api/tasks");
+      if (!res.ok) throw new Error("Failed to fetch tasks");
+      return res.json();
+    }
+  });
+
+  const deleteTask = async (taskId: number) => {
+    if (!confirm("আপনি কি নিশ্চিতভাবে এই টাস্কটি ডিলিট করতে চান?")) return;
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-id': userId || "" }
+      });
+      if (res.ok) {
+        alert("টাস্কটি ডিলিট হয়েছে");
+        window.location.reload();
+      }
+    } catch (err) {
+      alert("Error deleting task");
+    }
+  };
+
+  if (isLoading) return <div className="p-4 text-center text-muted-foreground italic">লোড হচ্ছে...</div>;
+
+  return (
+    <div className="space-y-3">
+      {!tasks || tasks.length === 0 ? (
+        <div className="text-center py-4 text-muted-foreground">কোনো টাস্ক পাওয়া যায়নি।</div>
+      ) : (
+        tasks.map((task: any) => (
+          <div key={task.id} className="flex justify-between items-center p-3 border rounded-lg bg-card shadow-sm">
+            <div className="flex-1 min-w-0 mr-4">
+              <p className="font-bold truncate text-foreground">{task.title}</p>
+              <p className="text-xs text-muted-foreground">
+                Reward: {task.rewardPerMember} BDT | Channel: {task.channelUsername}
+              </p>
+            </div>
+            <Button variant="destructive" size="icon" onClick={() => deleteTask(task.id)}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+            }
